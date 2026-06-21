@@ -285,6 +285,8 @@ const selectRegency = (reg) => {
 
 let map = null;
 let marker = null;
+let choroplethLayer = null;
+let geoJsonData = null;
 let updateLocationAndDistrict = null;
 
 const handleSearchInput = () => {
@@ -762,10 +764,8 @@ const initMap = async (isDark) => {
         return null;
     };
 
-    let geoJsonData = null;
-
     // Add District Boundaries
-    let choroplethLayer = null;
+    // (choroplethLayer and geoJsonData are declared at module level so onProvinceChange/onRegencyChange can access them)
     
     const updateChoroplethStyle = () => {
         if(!choroplethLayer) return;
