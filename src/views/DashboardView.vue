@@ -138,7 +138,7 @@
             </div>
 
             <div class="flex gap-3 mt-6 pt-5 border-t border-white/10">
-               <button @click="router.push('/location/add?district=' + districtStats.name + (districtStats.lat ? '&lat=' + districtStats.lat + '&lng=' + districtStats.lng : ''))" class="flex-1 py-3.5 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-400 hover:to-blue-400 text-white font-bold rounded-2xl transition-all shadow-[0_4px_20px_rgba(20,184,166,0.3)] hover:-translate-y-0.5">
+               <button @click="navigateToAddLocation()" class="flex-1 py-3.5 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-400 hover:to-blue-400 text-white font-bold rounded-2xl transition-all shadow-[0_4px_20px_rgba(20,184,166,0.3)] hover:-translate-y-0.5">
                  <i class="fa-solid fa-plus mr-2"></i> Tambah Titik di Sini
                </button>
                <button @click="selectedDistrict = null" class="px-8 py-3.5 bg-slate-700 text-white font-bold rounded-2xl hover:bg-slate-600 transition-colors shadow-lg">
@@ -539,12 +539,30 @@ const focusLocation = (loc) => {
     onLocationSelected(loc);
 }
 
+const buildAddQuery = (extras = {}) => {
+    const params = new URLSearchParams();
+    if (selectedProvince.value) params.set('province', selectedProvince.value.name);
+    if (selectedRegency.value) params.set('regency', selectedRegency.value.name);
+    Object.entries(extras).forEach(([k, v]) => { if (v !== null && v !== undefined) params.set(k, v); });
+    return params.toString();
+};
+
+const navigateToAddLocation = () => {
+    const query = buildAddQuery({
+        district: districtStats.value?.name || null,
+        lat: districtStats.value?.lat || null,
+        lng: districtStats.value?.lng || null,
+    });
+    router.push('/location/add?' + query);
+};
+
 const handleMapClick = (coords) => {
     selectedLocation.value = null;
     selectedDistrict.value = null;
     routeInfo.value = null;
-    if (confirm("Tambahkan titik baru di koordinat ini?")) {
-        router.push(`/location/add?lat=${coords.lat}&lng=${coords.lng}`);
+    if (confirm('Tambahkan titik baru di koordinat ini?')) {
+        const query = buildAddQuery({ lat: coords.lat, lng: coords.lng });
+        router.push('/location/add?' + query);
     }
 }
 

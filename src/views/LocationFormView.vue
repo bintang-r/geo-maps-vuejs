@@ -274,11 +274,16 @@ const filteredRegenciesList = computed(() => {
 
 const selectProvince = (prov) => {
     form.value.province = prov.name;
+    form.value.city = '';
+    form.value.district = '';
+    localStorage.setItem('savedProvince', prov.name);
+    localStorage.removeItem('savedRegency');
     onProvinceChange();
 }
 
 const selectRegency = (reg) => {
     form.value.city = reg.name;
+    localStorage.setItem('savedRegency', reg.name);
     onRegencyChange();
     isRegionModalOpen.value = false;
 }
@@ -381,33 +386,50 @@ onMounted(async () => {
             provincesList.value = await provRes.json();
             
             if (!isEdit) {
-                const savedProv = localStorage.getItem('savedProvince');
-                if (savedProv) {
-                    form.value.province = savedProv;
+                // Priority: query param (from DashboardView) > localStorage > nothing
+                const queryProv = route.query.province;
+                const queryReg  = route.query.regency;
+
+                if (queryProv) {
+                    form.value.province = queryProv;
+                    // Sync localStorage so future visits stay consistent
+                    localStorage.setItem('savedProvince', queryProv);
+                    if (queryReg) {
+                        localStorage.setItem('savedRegency', queryReg);
+                    } else {
+                        localStorage.removeItem('savedRegency');
+                    }
+                } else {
+                    const savedProv = localStorage.getItem('savedProvince');
+                    if (savedProv) form.value.province = savedProv;
                 }
             }
-            
-            if (form.value.province && !route.query.lat) {
-                // Only auto-load province/regency GeoJSON if NO explicit lat/lng is provided
-                // (explicit lat/lng means user came from clicking a district on the map)
+
+            if (form.value.province) {
+                // Always load the province regency list (needed for the dropdown)
                 await onProvinceChange(false);
-                
+
                 if (!isEdit) {
-                    const savedRegency = localStorage.getItem('savedRegency');
-                    if (savedRegency) {
-                        form.value.city = savedRegency;
-                        await onRegencyChange(false);
-                    } else if (regenciesList.value.length > 0) {
-                        // If current city is not in the province, pick the first one
-                        const cityExists = regenciesList.value.find(r => r.name === form.value.city);
-                        if (!cityExists) {
-                            if (!route.query.district) {
-                                form.value.city = regenciesList.value[0].name;
+                    const queryReg = route.query.regency;
+                    const targetRegency = queryReg || localStorage.getItem('savedRegency');
+
+                    if (targetRegency) {
+                        const regExists = regenciesList.value.find(r => r.name === targetRegency);
+                        if (regExists) {
+                            form.value.city = targetRegency;
+                            if (!route.query.lat) {
+                                // No explicit coords: load regency GeoJSON so peta shows regency
                                 await onRegencyChange(false);
+                            } else {
+                                // Has explicit lat/lng coords (from district click):
+                                // Just set city name; the lat/lng block below handles map position
+                                if (queryReg) localStorage.setItem('savedRegency', queryReg);
                             }
-                        } else {
-                            await onRegencyChange(false);
                         }
+                    } else if (regenciesList.value.length > 0 && !route.query.lat && !route.query.district) {
+                        // Nothing saved and no explicit location: auto-pick first regency
+                        form.value.city = regenciesList.value[0].name;
+                        await onRegencyChange(false);
                     }
                 }
             }
