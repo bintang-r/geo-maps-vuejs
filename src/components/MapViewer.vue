@@ -164,7 +164,8 @@ onMounted(() => {
                 click: (e) => {
                     L.DomEvent.stopPropagation(e);
                     const districtName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '';
-                    emit('district-selected', districtName);
+                    const center = layer.getBounds().getCenter();
+                    emit('district-selected', { name: districtName, lat: center.lat, lng: center.lng });
                 }
             });
         }

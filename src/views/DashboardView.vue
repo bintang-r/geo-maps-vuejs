@@ -138,7 +138,7 @@
             </div>
 
             <div class="flex gap-3 mt-6 pt-5 border-t border-white/10">
-               <button @click="router.push('/location/add?district=' + districtStats.name)" class="flex-1 py-3.5 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-400 hover:to-blue-400 text-white font-bold rounded-2xl transition-all shadow-[0_4px_20px_rgba(20,184,166,0.3)] hover:-translate-y-0.5">
+               <button @click="router.push('/location/add?district=' + districtStats.name + (districtStats.lat ? '&lat=' + districtStats.lat + '&lng=' + districtStats.lng : ''))" class="flex-1 py-3.5 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-400 hover:to-blue-400 text-white font-bold rounded-2xl transition-all shadow-[0_4px_20px_rgba(20,184,166,0.3)] hover:-translate-y-0.5">
                  <i class="fa-solid fa-plus mr-2"></i> Tambah Titik di Sini
                </button>
                <button @click="selectedDistrict = null" class="px-8 py-3.5 bg-slate-700 text-white font-bold rounded-2xl hover:bg-slate-600 transition-colors shadow-lg">
@@ -498,7 +498,12 @@ const handleRouteInfo = (info) => {
     routeInfo.value = info;
 };
 
-const onDistrictSelected = (districtName) => {
+const onDistrictSelected = (district) => {
+    // Support both old string format and new {name, lat, lng} object format
+    const districtName = typeof district === 'string' ? district : district.name;
+    const districtLat = typeof district === 'object' ? district.lat : null;
+    const districtLng = typeof district === 'object' ? district.lng : null;
+
     selectedLocation.value = null; // hide location card
     selectedDistrict.value = districtName;
     
@@ -517,6 +522,8 @@ const onDistrictSelected = (districtName) => {
     
     districtStats.value = {
         name: districtName,
+        lat: districtLat,
+        lng: districtLng,
         total: total,
         categories: Object.keys(categoryCounts).map(cat => ({
             name: cat,

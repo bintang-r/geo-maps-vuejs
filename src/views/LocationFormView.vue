@@ -384,7 +384,9 @@ onMounted(async () => {
                 }
             }
             
-            if (form.value.province) {
+            if (form.value.province && !route.query.lat) {
+                // Only auto-load province/regency GeoJSON if NO explicit lat/lng is provided
+                // (explicit lat/lng means user came from clicking a district on the map)
                 await onProvinceChange(false);
                 
                 if (!isEdit) {
@@ -842,13 +844,25 @@ const initMap = async (isDark) => {
         }
     }).addTo(map);
     
-    // Auto load current regency if set
-    if (form.value.city && regenciesList.value.length > 0) {
+    // Auto load current regency if set (and no explicit lat/lng from route)
+    if (form.value.city && regenciesList.value.length > 0 && !route.query.lat) {
         const reg = regenciesList.value.find(r => r.name === form.value.city);
         if (reg) {
             // attemptDraw is handled inside loadRegencyGeoJson
             loadRegencyGeoJson(reg.id);
         }
+    }
+
+    // If explicit lat/lng passed from dashboard (clicking district on map),
+    // zoom directly to that location — this is the REAL fix so marker goes to Manado, not Kalimantan
+    if (route.query.lat && route.query.lng) {
+        const lat = parseFloat(route.query.lat);
+        const lng = parseFloat(route.query.lng);
+        map.setView([lat, lng], 14, { animate: false });
+        marker.setLatLng([lat, lng]);
+        marker.setOpacity(1);
+        form.value.lat = lat;
+        form.value.lng = lng;
     }
     
     marker.on('drag', (e) => {
