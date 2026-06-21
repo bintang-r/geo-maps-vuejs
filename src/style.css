@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-lg;
+  }
+  .glass-dark {
+    @apply bg-gray-900/40 backdrop-blur-md border border-gray-700/50 shadow-xl;
+  }
+}
+
+body {
+  @apply bg-slate-900 text-white m-0 p-0 font-sans antialiased;
+}
