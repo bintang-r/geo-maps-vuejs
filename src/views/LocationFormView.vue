@@ -782,22 +782,31 @@ const initMap = async (isDark) => {
     // Add District Boundaries
     // (choroplethLayer and geoJsonData are declared at module level so onProvinceChange/onRegencyChange can access them)
     
+    const getChoroplethStyle = (feature) => {
+        const districtName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '';
+        const hasFocusedDistrict = !!form.value.district;
+        const isSelected = hasFocusedDistrict && districtName.toLowerCase() === form.value.district.toLowerCase();
+        const shouldShow = !hasFocusedDistrict || isSelected;
+
+        return {
+            fillColor: isSelected ? '#14b8a6' : (shouldShow ? '#64748b' : 'transparent'),
+            weight: isSelected ? 3 : (shouldShow ? 1 : 0),
+            opacity: shouldShow ? 1 : 0,
+            color: isSelected ? '#0f766e' : (shouldShow ? '#94a3b8' : 'transparent'),
+            dashArray: isSelected ? '' : '3',
+            fillOpacity: isSelected ? 0.4 : (shouldShow ? 0.15 : 0)
+        };
+    };
+
     updateChoroplethStyle = () => {
         if(!choroplethLayer) return;
         choroplethLayer.eachLayer(layer => {
+            layer.setStyle(getChoroplethStyle(layer.feature));
+            
             const districtName = layer.feature.properties.district || layer.feature.properties.kecamatan || layer.feature.properties.name || '';
             const hasFocusedDistrict = !!form.value.district;
             const isSelected = hasFocusedDistrict && districtName.toLowerCase() === form.value.district.toLowerCase();
-            const shouldShow = !hasFocusedDistrict || isSelected;
-
-            layer.setStyle({
-                fillColor: isSelected ? '#14b8a6' : (shouldShow ? '#64748b' : 'transparent'),
-                weight: isSelected ? 3 : (shouldShow ? 1 : 0),
-                opacity: shouldShow ? 1 : 0,
-                color: isSelected ? '#0f766e' : (shouldShow ? '#94a3b8' : 'transparent'),
-                dashArray: isSelected ? '' : '3',
-                fillOpacity: isSelected ? 0.4 : (shouldShow ? 0.15 : 0)
-            });
+            
             if (isSelected && !L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
                 layer.bringToFront();
                 if(marker) marker.bringToFront();
@@ -817,14 +826,7 @@ const initMap = async (isDark) => {
 
     // Create choropleth layer empty initially
     choroplethLayer = L.geoJSON(null, {
-        style: {
-            fillColor: '#64748b',
-            weight: 1,
-            opacity: 1,
-            color: '#94a3b8',
-            dashArray: '3',
-            fillOpacity: 0.15
-        },
+        style: getChoroplethStyle,
         onEachFeature: (feature, layer) => {
             layer.bindTooltip(() => {
                 const districtName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '-';
@@ -853,7 +855,12 @@ const initMap = async (isDark) => {
                     }
                 },
                 mouseout: (e) => {
-                    updateChoroplethStyle();
+                    const targetCode = feature.properties.district_code || feature.properties.district;
+                    choroplethLayer.eachLayer((l) => {
+                        if ((l.feature.properties.district_code || l.feature.properties.district) === targetCode) {
+                            choroplethLayer.resetStyle(l);
+                        }
+                    });
                 }
             });
         }
