@@ -288,6 +288,7 @@ let marker = null;
 let choroplethLayer = null;
 let geoJsonData = null;
 let updateLocationAndDistrict = null;
+let updateChoroplethStyle = () => {}; // Will be assigned inside initMap
 
 const handleSearchInput = () => {
     if (!searchQueryMap.value.trim()) {
@@ -767,7 +768,7 @@ const initMap = async (isDark) => {
     // Add District Boundaries
     // (choroplethLayer and geoJsonData are declared at module level so onProvinceChange/onRegencyChange can access them)
     
-    const updateChoroplethStyle = () => {
+    updateChoroplethStyle = () => {
         if(!choroplethLayer) return;
         choroplethLayer.eachLayer(layer => {
             const districtName = layer.feature.properties.district || layer.feature.properties.kecamatan || layer.feature.properties.name || '';
