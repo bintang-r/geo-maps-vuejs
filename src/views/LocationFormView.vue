@@ -606,14 +606,18 @@ const loadRegencyGeoJson = async (regencyId, noZoom = false) => {
                     const numLayers = Object.keys(choroplethLayer._layers).length;
                     
                     if (numLayers > 0) {
-                        // Apply correct polygon style (show all or focus on district)
-                        updateChoroplethStyle();
-
                         if (noZoom) {
                             // noZoom mode: polygons & hover are drawn, but don't move the map.
-                            // The explicit lat/lng block in initMap handles marker + view.
+                            // Reset district so ALL kecamatan polygons are visible initially.
+                            // updateLocationAndDistrict (called by initMap's lat/lng block) 
+                            // will detect & highlight the correct kecamatan from marker position.
+                            form.value.district = '';
+                            updateChoroplethStyle();
                             return;
                         }
+
+                        // Apply correct polygon style (show all or focus on district)
+                        updateChoroplethStyle();
 
                         const regencyBounds = choroplethLayer.getBounds();
                         let targetBounds = regencyBounds;
@@ -862,7 +866,7 @@ const initMap = async (isDark) => {
     }
 
     // If explicit lat/lng passed from dashboard (clicking district on map),
-    // zoom directly to that location — this is the REAL fix so marker goes to Manado, not Kalimantan
+    // zoom directly to that location
     if (route.query.lat && route.query.lng) {
         const lat = parseFloat(route.query.lat);
         const lng = parseFloat(route.query.lng);
@@ -871,6 +875,11 @@ const initMap = async (isDark) => {
         marker.setOpacity(1);
         form.value.lat = lat;
         form.value.lng = lng;
+        // Detect which kecamatan the marker is in and highlight it.
+        // Use a short delay so GeoJSON (loaded async) is ready.
+        setTimeout(() => {
+            if (updateLocationAndDistrict) updateLocationAndDistrict(lat, lng);
+        }, 500);
     }
     
     marker.on('drag', (e) => {
