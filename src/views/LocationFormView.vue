@@ -434,11 +434,7 @@ onMounted(async () => {
         console.error("Failed to load initial data", e);
     }
 
-    setTimeout(() => {
-        initMap(isDark);
-    }, 100);
-
-    // Load data if editing
+    // Load edit data BEFORE initMap so map initializes at the correct coordinates
     if (isEdit && locationId) {
         try {
             const res = await fetch(`${baseUrl}/locations/${locationId}`)
@@ -465,16 +461,12 @@ onMounted(async () => {
                     path: img
                 }))
 
-                // Update map
-                if(marker && map) {
-                    marker.setLatLng([data.lat, data.lng])
-                    map.setView([data.lat, data.lng], 15)
-                }
-
+                // Load province regency list for dropdowns (don't reset child fields)
+                // Use 'noZoom' for regency GeoJSON so map stays at the real location coords
                 if (data.province) {
                     await onProvinceChange(false);
                     if (data.city) {
-                        await onRegencyChange(false);
+                        await onRegencyChange('noZoom');
                     }
                 }
             }
@@ -483,6 +475,14 @@ onMounted(async () => {
             console.error("Failed to load location", e)
         }
     }
+
+    // initMap runs AFTER data is loaded — so form.value.lat/lng are correct coordinates
+    // For edit: map starts at location's real coords
+    // For add with lat/lng query: map starts at district center
+    // For add without: map starts at province/regency center (loaded by onRegencyChange above)
+    setTimeout(() => {
+        initMap(isDark);
+    }, 100);
 })
 
 const onProvinceChange = async (resetChild = true) => {
@@ -608,10 +608,13 @@ const loadRegencyGeoJson = async (regencyId, noZoom = false) => {
                     if (numLayers > 0) {
                         if (noZoom) {
                             // noZoom mode: polygons & hover are drawn, but don't move the map.
-                            // Reset district so ALL kecamatan polygons are visible initially.
-                            // updateLocationAndDistrict (called by initMap's lat/lng block) 
-                            // will detect & highlight the correct kecamatan from marker position.
-                            form.value.district = '';
+                            if (!isEdit) {
+                                // For ADD mode: reset district so all kecamatan polygons show.
+                                // updateLocationAndDistrict (from initMap lat/lng block) will 
+                                // detect the correct kecamatan from marker position.
+                                form.value.district = '';
+                            }
+                            // For EDIT mode: keep district so the existing kecamatan stays highlighted.
                             updateChoroplethStyle();
                             return;
                         }
@@ -664,7 +667,7 @@ const loadRegencyGeoJson = async (regencyId, noZoom = false) => {
 const initMap = async (isDark) => {
     map = L.map('form-map', {
         center: [form.value.lat, form.value.lng],
-        zoom: 13,
+        zoom: isEdit ? 15 : 13,
         minZoom: 5,
         maxBounds: [
             [-11.0, 95.0],

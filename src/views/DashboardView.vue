@@ -93,12 +93,12 @@
     <div class="flex-1 relative h-full">
       
       <!-- Current Region Indicator over Map -->
-      <div @click="isRegionModalOpen = true" class="absolute top-4 right-14 z-[400] bg-white/90 dark:bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-md border border-gray-200 dark:border-slate-700 cursor-pointer flex items-center gap-2 transition-all hover:bg-gray-50 dark:hover:bg-slate-700 hover:scale-105 group">
-         <i class="fa-solid fa-map-location-dot text-teal-500 group-hover:scale-110 transition-transform"></i>
-         <span class="text-sm font-bold text-slate-700 dark:text-gray-200">
+      <div @click="isRegionModalOpen = true" class="absolute top-4 left-4 z-[400] bg-white/90 dark:bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-md border border-gray-200 dark:border-slate-700 cursor-pointer flex items-center gap-2 transition-all hover:bg-gray-50 dark:hover:bg-slate-700 hover:scale-105 group max-w-[240px]">
+         <i class="fa-solid fa-map-location-dot text-teal-500 group-hover:scale-110 transition-transform shrink-0"></i>
+         <span class="text-sm font-bold text-slate-700 dark:text-gray-200 truncate">
              {{ selectedProvince ? selectedProvince.name : 'Seluruh Indonesia' }}{{ selectedRegency ? ' - ' + selectedRegency.name : '' }}
          </span>
-         <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 ml-1"></i>
+         <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 ml-1 shrink-0"></i>
       </div>
 
       <MapViewer 
@@ -408,7 +408,7 @@ const fetchData = async () => {
     }
 }
 
-const onProvinceChange = async () => {
+const onProvinceChange = async (isUserAction = true) => {
     selectedRegency.value = null;
     regencyGeoJson.value = null;
     regenciesList.value = [];
@@ -417,7 +417,10 @@ const onProvinceChange = async () => {
     
     // Save to localStorage
     localStorage.setItem('savedProvince', selectedProvince.value.name);
-    localStorage.removeItem('savedRegency'); // reset regency
+    // Only clear savedRegency when user actively changes province (not on initial load)
+    if (isUserAction) {
+        localStorage.removeItem('savedRegency');
+    }
     
     try {
         const res = await fetch(`${baseUrl}/regencies?province_id=${selectedProvince.value.id}`);
@@ -625,9 +628,11 @@ onMounted(() => {
             const defaultProv = provincesList.value.find(p => p.name.toLowerCase() === savedProvName.toLowerCase());
             
             if (defaultProv) {
+                // Read savedRegency BEFORE calling onProvinceChange (which may clear it)
+                const savedRegName = localStorage.getItem('savedRegency') || 'Kota Makassar';
+
                 selectedProvince.value = defaultProv;
-                onProvinceChange().then(() => {
-                    const savedRegName = localStorage.getItem('savedRegency') || 'Kota Makassar';
+                onProvinceChange(false).then(() => {
                     const defaultReg = regenciesList.value.find(r => r.name.toLowerCase() === savedRegName.toLowerCase());
                     if (defaultReg) {
                         selectedRegency.value = defaultReg;
