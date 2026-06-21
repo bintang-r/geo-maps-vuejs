@@ -417,14 +417,10 @@ onMounted(async () => {
                         const regExists = regenciesList.value.find(r => r.name === targetRegency);
                         if (regExists) {
                             form.value.city = targetRegency;
-                            if (!route.query.lat) {
-                                // No explicit coords: load regency GeoJSON so peta shows regency
-                                await onRegencyChange(false);
-                            } else {
-                                // Has explicit lat/lng coords (from district click):
-                                // Just set city name; the lat/lng block below handles map position
-                                if (queryReg) localStorage.setItem('savedRegency', queryReg);
-                            }
+                            if (queryReg) localStorage.setItem('savedRegency', queryReg);
+                            // Always load regency GeoJSON so kecamatan/kelurahan polygons & hover appear.
+                            // Pass 'noZoom' flag when we have explicit lat/lng so initMap handles positioning.
+                            await onRegencyChange(route.query.lat ? 'noZoom' : false);
                         }
                     } else if (regenciesList.value.length > 0 && !route.query.lat && !route.query.district) {
                         // Nothing saved and no explicit location: auto-pick first regency
@@ -555,8 +551,9 @@ const onProvinceChange = async (resetChild = true) => {
 }
 
 const onRegencyChange = async (clearFields = true) => {
-    if (typeof clearFields !== 'boolean') clearFields = true;
-    if(clearFields) {
+    const noZoom = clearFields === 'noZoom';
+    const shouldClear = clearFields === true;
+    if (shouldClear) {
         form.value.district = '';
     }
     const reg = regenciesList.value.find(r => r.name === form.value.city);
@@ -565,7 +562,7 @@ const onRegencyChange = async (clearFields = true) => {
     localStorage.setItem('savedProvince', form.value.province);
     localStorage.setItem('savedRegency', form.value.city);
     
-    loadRegencyGeoJson(reg.id);
+    loadRegencyGeoJson(reg.id, noZoom);
 }
 
 const onDistrictManualChange = () => {
@@ -594,69 +591,57 @@ const onDistrictManualChange = () => {
 
 let initialLoadFinished = false;
 
-const loadRegencyGeoJson = async (regencyId) => {
+const loadRegencyGeoJson = async (regencyId, noZoom = false) => {
     try {
-        console.log("Loading GeoJSON for regency:", regencyId);
         const res = await fetch(`${baseUrl}/regencies/${regencyId}/geojson`);
         if (res.ok) {
             const data = await res.json();
             geoJsonData = data;
             
             const attemptDraw = () => {
-                console.log("attemptDraw called. map ready:", !!map, "choroplethLayer ready:", !!choroplethLayer);
                 if (map && choroplethLayer) {
                     choroplethLayer.clearLayers();
                     choroplethLayer.addData(geoJsonData);
                     
                     const numLayers = Object.keys(choroplethLayer._layers).length;
-                    console.log("Layers added:", numLayers);
                     
                     if (numLayers > 0) {
+                        // Apply correct polygon style (show all or focus on district)
+                        updateChoroplethStyle();
+
+                        if (noZoom) {
+                            // noZoom mode: polygons & hover are drawn, but don't move the map.
+                            // The explicit lat/lng block in initMap handles marker + view.
+                            return;
+                        }
+
                         const regencyBounds = choroplethLayer.getBounds();
                         let targetBounds = regencyBounds;
                         let foundDistrictLayer = null;
 
-                        // If a district is pre-filled, try to find its layer
+                        // If a district is pre-filled, try to focus on it
                         if (form.value.district) {
-                            console.log("Looking for district:", form.value.district);
                             choroplethLayer.eachLayer(layer => {
                                 const dName = layer.feature.properties.district || layer.feature.properties.kecamatan || layer.feature.properties.name || '';
                                 if (dName.toLowerCase() === form.value.district.toLowerCase()) {
-                                    console.log("Found matching district layer:", dName);
                                     foundDistrictLayer = layer;
                                 }
                             });
-                            if (!foundDistrictLayer) {
-                                console.log("Warning: District layer not found for", form.value.district);
-                            }
                         }
 
                         if (foundDistrictLayer) {
                             targetBounds = foundDistrictLayer.getBounds();
                         }
-
-                        console.log("Bounds:", targetBounds);
                         
-                        if (!isEdit && route.query.lat && route.query.lng && !initialLoadFinished) {
-                            console.log("Using route.query coordinates");
-                            map.setView([form.value.lat, form.value.lng], 13);
-                            initialLoadFinished = true;
-                            if (marker) marker.setOpacity(1);
-                        } else {
-                            console.log("Fitting bounds to target");
-                            map.fitBounds(targetBounds, { padding: [20, 20], maxZoom: 14 });
-                            if (!isEdit && marker) {
-                                const center = targetBounds.getCenter();
-                                console.log("Moving marker to center:", center);
-                                marker.setLatLng(center);
-                                marker.setOpacity(1);
-                                form.value.lat = center.lat;
-                                form.value.lng = center.lng;
-                            }
+                        map.fitBounds(targetBounds, { padding: [20, 20], maxZoom: 14 });
+                        if (!isEdit && marker) {
+                            const center = targetBounds.getCenter();
+                            marker.setLatLng(center);
+                            marker.setOpacity(1);
+                            form.value.lat = center.lat;
+                            form.value.lng = center.lng;
                         }
                         updateLocationAndDistrict(form.value.lat, form.value.lng);
-                    } else {
-                        console.error("GeoJSON data loaded but 0 layers created!");
                     }
                 } else {
                     // map or choroplethLayer not ready yet, wait and try again
@@ -665,7 +650,7 @@ const loadRegencyGeoJson = async (regencyId) => {
             };
             attemptDraw();
         } else {
-            console.error("Failed to load GeoJSON:", res.status);
+            console.error('Failed to load GeoJSON:', res.status);
         }
     } catch (err) {
         console.error("Error loading GeoJSON", err);
