@@ -769,14 +769,17 @@ const initMap = async (isDark) => {
         if(!choroplethLayer) return;
         choroplethLayer.eachLayer(layer => {
             const districtName = layer.feature.properties.district || layer.feature.properties.kecamatan || layer.feature.properties.name || '';
-            const isSelected = form.value.district && districtName.toLowerCase() === form.value.district.toLowerCase();
+            const hasFocusedDistrict = !!form.value.district;
+            const isSelected = hasFocusedDistrict && districtName.toLowerCase() === form.value.district.toLowerCase();
+            const shouldShow = !hasFocusedDistrict || isSelected;
+
             layer.setStyle({
-                fillColor: isSelected ? '#14b8a6' : '#64748b',
-                weight: isSelected ? 3 : 1,
-                opacity: 1,
-                color: isSelected ? '#0f766e' : '#94a3b8',
+                fillColor: isSelected ? '#14b8a6' : (shouldShow ? '#64748b' : 'transparent'),
+                weight: isSelected ? 3 : (shouldShow ? 1 : 0),
+                opacity: shouldShow ? 1 : 0,
+                color: isSelected ? '#0f766e' : (shouldShow ? '#94a3b8' : 'transparent'),
                 dashArray: isSelected ? '' : '3',
-                fillOpacity: isSelected ? 0.4 : 0.15
+                fillOpacity: isSelected ? 0.4 : (shouldShow ? 0.15 : 0)
             });
             if (isSelected && !L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
                 layer.bringToFront();
