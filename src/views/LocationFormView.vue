@@ -359,6 +359,62 @@ const searchLocation = async () => {
     }
 }
 
+const detectRegionFromCoords = async (lat, lng) => {
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+        if (res.ok) {
+            const data = await res.json();
+            const address = data.address || {};
+            
+            const state = address.state || '';
+            const city = address.city || address.regency || address.county || address.town || address.municipality || '';
+            const suburb = address.suburb || address.village || address.district || address.kecamatan || '';
+
+            // Find matching province
+            let foundProvince = '';
+            if (state) {
+                const sName = state.toLowerCase();
+                const matchedProv = provincesList.value.find(p => {
+                    const pName = p.name.toLowerCase();
+                    return pName.includes(sName) || sName.includes(pName) ||
+                           (pName === 'dki jakarta' && (sName.includes('jakarta') || sName.includes('ibukota')));
+                });
+                if (matchedProv) {
+                    foundProvince = matchedProv.name;
+                }
+            }
+
+            if (foundProvince) {
+                form.value.province = foundProvince;
+                localStorage.setItem('savedProvince', foundProvince);
+                await onProvinceChange(false);
+
+                // Find matching regency
+                if (city) {
+                    const cName = city.toLowerCase();
+                    const matchedReg = regenciesList.value.find(r => {
+                        const rName = r.name.toLowerCase();
+                        return rName.includes(cName) || cName.includes(rName) ||
+                               (cName.includes('jakarta') && rName.includes(cName.replace('jakarta', '').trim()));
+                    });
+                    if (matchedReg) {
+                        form.value.city = matchedReg.name;
+                        localStorage.setItem('savedRegency', matchedReg.name);
+                        await onRegencyChange('noZoom');
+                    }
+                }
+            }
+            
+            // Set suburb/district as target district if present
+            if (suburb) {
+                form.value.district = suburb;
+            }
+        }
+    } catch(e) {
+        console.error("Failed to reverse geocode coordinates", e);
+    }
+}
+
 onMounted(async () => {
     // Determine Theme
     const savedTheme = localStorage.getItem('theme')
@@ -386,46 +442,38 @@ onMounted(async () => {
             provincesList.value = await provRes.json();
             
             if (!isEdit) {
-                // Priority: query param (from DashboardView) > localStorage > nothing
                 const queryProv = route.query.province;
                 const queryReg  = route.query.regency;
+                const queryLat  = route.query.lat;
+                const queryLng  = route.query.lng;
 
-                if (queryProv) {
+                if (queryProv && queryReg) {
                     form.value.province = queryProv;
-                    // Sync localStorage so future visits stay consistent
                     localStorage.setItem('savedProvince', queryProv);
-                    if (queryReg) {
-                        localStorage.setItem('savedRegency', queryReg);
-                    } else {
-                        localStorage.removeItem('savedRegency');
+                    localStorage.setItem('savedRegency', queryReg);
+                    
+                    await onProvinceChange(false);
+                    const regExists = regenciesList.value.find(r => r.name === queryReg);
+                    if (regExists) {
+                        form.value.city = queryReg;
+                        await onRegencyChange(queryLat ? 'noZoom' : false);
                     }
+                } else if (queryLat && queryLng) {
+                    // Try to detect region from coordinates via Nominatim
+                    await detectRegionFromCoords(parseFloat(queryLat), parseFloat(queryLng));
                 } else {
                     const savedProv = localStorage.getItem('savedProvince');
-                    if (savedProv) form.value.province = savedProv;
-                }
-            }
-
-            if (form.value.province) {
-                // Always load the province regency list (needed for the dropdown)
-                await onProvinceChange(false);
-
-                if (!isEdit) {
-                    const queryReg = route.query.regency;
-                    const targetRegency = queryReg || localStorage.getItem('savedRegency');
-
-                    if (targetRegency) {
-                        const regExists = regenciesList.value.find(r => r.name === targetRegency);
-                        if (regExists) {
-                            form.value.city = targetRegency;
-                            if (queryReg) localStorage.setItem('savedRegency', queryReg);
-                            // Always load regency GeoJSON so kecamatan/kelurahan polygons & hover appear.
-                            // Pass 'noZoom' flag when we have explicit lat/lng so initMap handles positioning.
-                            await onRegencyChange(route.query.lat ? 'noZoom' : false);
+                    if (savedProv) {
+                        form.value.province = savedProv;
+                        await onProvinceChange(false);
+                        const savedReg = localStorage.getItem('savedRegency');
+                        if (savedReg) {
+                            const regExists = regenciesList.value.find(r => r.name === savedReg);
+                            if (regExists) {
+                                form.value.city = savedReg;
+                                await onRegencyChange(false);
+                            }
                         }
-                    } else if (regenciesList.value.length > 0 && !route.query.lat && !route.query.district) {
-                        // Nothing saved and no explicit location: auto-pick first regency
-                        form.value.city = regenciesList.value[0].name;
-                        await onRegencyChange(false);
                     }
                 }
             }
@@ -505,6 +553,12 @@ const onProvinceChange = async (resetChild = true) => {
         console.error("Failed to load regencies", e);
     }
 
+    // IF resetChild is false (like in initial mount/edit load), and we have a city/regency, 
+    // DO NOT load or draw the province geojson. It will be loaded by onRegencyChange!
+    if (!resetChild && form.value.city) {
+        return;
+    }
+
     // Fetch province geojson and zoom to it
     try {
         const resGeo = await fetch(`${baseUrl}/provinces/${prov.id}/geojson`);
@@ -512,6 +566,9 @@ const onProvinceChange = async (resetChild = true) => {
             const provGeoData = await resGeo.json();
             const attemptDrawProv = () => {
                 if (map && choroplethLayer) {
+                    // Check again if form.value.city is set. If so, abort to avoid race conditions.
+                    if (form.value.city) return;
+
                     if (resetChild === true || resetChild instanceof Event || Object.keys(choroplethLayer._layers).length === 0) {
                         choroplethLayer.clearLayers();
                         choroplethLayer.addData(provGeoData);
@@ -608,14 +665,7 @@ const loadRegencyGeoJson = async (regencyId, noZoom = false) => {
                     if (numLayers > 0) {
                         if (noZoom) {
                             // noZoom mode: polygons & hover are drawn, but don't move the map.
-                            if (!isEdit) {
-                                // For ADD mode: reset district so all kecamatan polygons show.
-                                // updateLocationAndDistrict (from initMap lat/lng block) will 
-                                // detect the correct kecamatan from marker position.
-                                form.value.district = '';
-                            }
-                            // For EDIT mode: keep district so the existing kecamatan stays highlighted.
-                            updateChoroplethStyle();
+                            updateLocationAndDistrict(form.value.lat, form.value.lng);
                             return;
                         }
 
@@ -766,12 +816,12 @@ const initMap = async (isDark) => {
         for (const feature of geoData.features) {
             if (feature.geometry.type === 'Polygon') {
                 if (booleanPointInPolygon([lng, lat], feature.geometry.coordinates[0])) {
-                    return feature.properties.district || feature.properties.kecamatan;
+                    return feature.properties.district || feature.properties.kecamatan || feature.properties.name;
                 }
             } else if (feature.geometry.type === 'MultiPolygon') {
                 for (const polygon of feature.geometry.coordinates) {
                     if (booleanPointInPolygon([lng, lat], polygon[0])) {
-                        return feature.properties.district || feature.properties.kecamatan;
+                        return feature.properties.district || feature.properties.kecamatan || feature.properties.name;
                     }
                 }
             }
@@ -786,15 +836,14 @@ const initMap = async (isDark) => {
         const districtName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '';
         const hasFocusedDistrict = !!form.value.district;
         const isSelected = hasFocusedDistrict && districtName.toLowerCase() === form.value.district.toLowerCase();
-        const shouldShow = !hasFocusedDistrict || isSelected;
 
         return {
-            fillColor: isSelected ? '#14b8a6' : (shouldShow ? '#64748b' : 'transparent'),
-            weight: isSelected ? 3 : (shouldShow ? 1 : 0),
-            opacity: shouldShow ? 1 : 0,
-            color: isSelected ? '#0f766e' : (shouldShow ? '#94a3b8' : 'transparent'),
+            fillColor: isSelected ? '#14b8a6' : '#64748b',
+            weight: isSelected ? 3 : 1,
+            opacity: 1,
+            color: isSelected ? '#0f766e' : '#94a3b8',
             dashArray: isSelected ? '' : '3',
-            fillOpacity: isSelected ? 0.4 : (shouldShow ? 0.15 : 0)
+            fillOpacity: isSelected ? 0.45 : 0.15
         };
     };
 
@@ -809,7 +858,6 @@ const initMap = async (isDark) => {
             
             if (isSelected && !L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
                 layer.bringToFront();
-                if(marker) marker.bringToFront();
             }
         });
     };
@@ -837,10 +885,11 @@ const initMap = async (isDark) => {
             layer.on({
                 mouseover: (e) => {
                     const targetLayer = e.target;
-                    const targetCode = feature.properties.district_code || feature.properties.district;
+                    const targetCode = feature.properties.district_code || feature.properties.district || feature.properties.kecamatan || feature.properties.name;
                     
                     choroplethLayer.eachLayer((l) => {
-                        if ((l.feature.properties.district_code || l.feature.properties.district) === targetCode) {
+                        const lCode = l.feature.properties.district_code || l.feature.properties.district || l.feature.properties.kecamatan || l.feature.properties.name;
+                        if (lCode === targetCode) {
                             if (l === targetLayer) {
                                 l.setStyle({ weight: 4, color: '#0ea5e9', dashArray: '', fillOpacity: 0.8 });
                             } else {
@@ -851,14 +900,14 @@ const initMap = async (isDark) => {
                     
                     if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
                         targetLayer.bringToFront();
-                        if(marker) marker.bringToFront();
                     }
                 },
                 mouseout: (e) => {
-                    const targetCode = feature.properties.district_code || feature.properties.district;
+                    const targetCode = feature.properties.district_code || feature.properties.district || feature.properties.kecamatan || feature.properties.name;
                     choroplethLayer.eachLayer((l) => {
-                        if ((l.feature.properties.district_code || l.feature.properties.district) === targetCode) {
-                            choroplethLayer.resetStyle(l);
+                        const lCode = l.feature.properties.district_code || l.feature.properties.district || l.feature.properties.kecamatan || l.feature.properties.name;
+                        if (lCode === targetCode) {
+                            l.setStyle(getChoroplethStyle(l.feature));
                         }
                     });
                 }
