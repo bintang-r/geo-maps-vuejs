@@ -262,7 +262,12 @@ const isRegionModalOpen = ref(false)
 const provinceSearch = ref('')
 const regencySearch = ref('')
 
-const filteredRegencies = computed(() => {
+const filteredProvincesList = computed(() => {
+    if (!provinceSearch.value) return provincesList.value;
+    return provincesList.value.filter(p => p.name.toLowerCase().includes(provinceSearch.value.toLowerCase()));
+});
+
+const filteredRegenciesList = computed(() => {
     if (!regencySearch.value) return regenciesList.value;
     return regenciesList.value.filter(r => r.name.toLowerCase().includes(regencySearch.value.toLowerCase()));
 });
@@ -391,8 +396,10 @@ onMounted(async () => {
                         // If current city is not in the province, pick the first one
                         const cityExists = regenciesList.value.find(r => r.name === form.value.city);
                         if (!cityExists) {
-                            form.value.city = regenciesList.value[0].name;
-                            await onRegencyChange(false);
+                            if (!route.query.district) {
+                                form.value.city = regenciesList.value[0].name;
+                                await onRegencyChange(false);
+                            }
                         } else {
                             await onRegencyChange(false);
                         }
@@ -456,7 +463,7 @@ onMounted(async () => {
 })
 
 const onProvinceChange = async (resetChild = true) => {
-    if (resetChild) {
+    if (resetChild === true || resetChild instanceof Event) {
         form.value.city = '';
         form.value.district = '';
         regenciesList.value = [];
@@ -480,24 +487,40 @@ const onProvinceChange = async (resetChild = true) => {
         const resGeo = await fetch(`${baseUrl}/provinces/${prov.id}/geojson`);
         if (resGeo.ok) {
             const provGeoData = await resGeo.json();
-            if (map && choroplethLayer) {
-                if (resetChild || Object.keys(choroplethLayer._layers).length === 0) {
-                    choroplethLayer.clearLayers();
-                    choroplethLayer.addData(provGeoData);
-                    if (Object.keys(choroplethLayer._layers).length > 0) {
-                        const bounds = choroplethLayer.getBounds();
-                        map.fitBounds(bounds, { padding: [20, 20], maxZoom: 10 });
-                        if (!isEdit && marker && !route.query.lat) {
-                            const center = bounds.getCenter();
-                            marker.setLatLng(center);
-                            marker.setOpacity(1);
-                            form.value.lat = center.lat;
-                            form.value.lng = center.lng;
-                            updateLocationAndDistrict(center.lat, center.lng);
+            const attemptDrawProv = () => {
+                if (map && choroplethLayer) {
+                    if (resetChild === true || resetChild instanceof Event || Object.keys(choroplethLayer._layers).length === 0) {
+                        choroplethLayer.clearLayers();
+                        choroplethLayer.addData(provGeoData);
+                        geoJsonData = provGeoData;
+                        if (Object.keys(choroplethLayer._layers).length > 0) {
+                            let targetBounds = choroplethLayer.getBounds();
+                            let maxZoom = 10;
+                            if (form.value.district) {
+                                choroplethLayer.eachLayer(layer => {
+                                    const dName = layer.feature.properties.district || layer.feature.properties.kecamatan || layer.feature.properties.name || '';
+                                    if (dName.toLowerCase() === form.value.district.toLowerCase()) {
+                                        targetBounds = layer.getBounds();
+                                        maxZoom = 14;
+                                    }
+                                });
+                            }
+                            map.fitBounds(targetBounds, { padding: [20, 20], maxZoom: maxZoom });
+                            if (!isEdit && marker && !route.query.lat) {
+                                const center = targetBounds.getCenter();
+                                marker.setLatLng(center);
+                                marker.setOpacity(1);
+                                form.value.lat = center.lat;
+                                form.value.lng = center.lng;
+                                updateLocationAndDistrict(center.lat, center.lng);
+                            }
                         }
                     }
+                } else {
+                    setTimeout(attemptDrawProv, 100);
                 }
-            }
+            };
+            attemptDrawProv();
         }
     } catch(e) {
         console.error("Failed to load province geojson", e);
@@ -701,7 +724,7 @@ const initMap = async (isDark) => {
     marker = L.marker([form.value.lat, form.value.lng], { 
         icon: customIcon,
         draggable: true,
-        opacity: (route.query.lat || isEdit) ? 1 : 0
+        opacity: 1
     }).addTo(map);
 
     updateMarkerIcon(); // Set initial icon based on category
