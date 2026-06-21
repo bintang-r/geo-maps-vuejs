@@ -1,173 +1,633 @@
 <template>
-  <div class="p-6 h-full flex flex-col gap-6 bg-slate-900 text-gray-100 overflow-y-auto">
-    <!-- Top Stats Row -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <StatsCard title="Total Locations" :value="stats.totalPoints || 0" icon="map" />
-      <StatsCard title="Active Categories" :value="stats.categories ? stats.categories.length : 0" icon="tag" />
-      <StatsCard title="Top District" :value="topDistrict" icon="location" />
-    </div>
+  <div class="h-screen w-full bg-slate-100 flex overflow-hidden font-sans text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors">
     
-    <!-- Main Content Area -->
-    <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[600px]">
-      <!-- Map Column -->
-      <div class="lg:col-span-2 glass-dark rounded-2xl overflow-hidden shadow-2xl relative border border-gray-700 flex flex-col">
-        <div class="flex-1 w-full h-full min-h-[400px]">
-            <MapViewer 
-                :locations="locations" 
-                @map-click="handleMapClick" 
-                @edit-location="openModal" 
-                @delete-location="deleteLocation" 
-            />
-        </div>
-        
-        <!-- Floating Add Button -->
-        <button @click="openModal()" class="absolute bottom-6 right-6 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-400 hover:to-blue-400 text-white p-4 rounded-full shadow-[0_0_15px_rgba(20,184,166,0.5)] z-[400] transition-all hover:scale-105 active:scale-95 group">
-          <svg class="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+    <!-- Left Icon Rail -->
+    <div class="w-20 bg-slate-950/90 backdrop-blur-xl flex flex-col items-center py-6 shadow-2xl z-20 shrink-0 border-r border-white/10">
+      <div class="mb-8 p-3 bg-teal-500 text-white rounded-2xl shadow-lg">
+        <i class="fa-solid fa-cube text-2xl"></i>
       </div>
       
-      <!-- Analytics Column -->
-      <div class="glass-dark rounded-2xl p-6 shadow-xl flex flex-col gap-6 border border-gray-700">
-        <h3 class="text-xl font-semibold text-teal-400 border-b border-gray-700 pb-2">Category Distribution</h3>
-        <div class="flex-1 relative w-full h-64 flex justify-center items-center">
-            <canvas id="categoryChart"></canvas>
+      <div class="flex flex-col gap-6 flex-1 w-full items-center">
+        <button class="w-12 h-12 rounded-2xl bg-white/10 text-white flex items-center justify-center shadow-inner relative group" title="Dashboard">
+          <i class="fa-solid fa-house text-lg"></i>
+          <div class="absolute -right-2 top-1/2 transform -translate-y-1/2 w-1.5 h-6 bg-teal-500 rounded-l-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </button>
+        
+        <button @click="selectedLocation ? router.push(`/location/add?lat=${selectedLocation.lat}&lng=${selectedLocation.lng}`) : router.push('/location/add')" class="w-12 h-12 rounded-2xl bg-teal-500 text-white flex items-center justify-center shadow-lg shadow-teal-500/30 transition-transform hover:scale-105 group" title="Tambah Titik">
+          <i class="fa-solid fa-plus text-lg"></i>
+        </button>
+
+        <button @click="router.push('/admin')" class="w-12 h-12 rounded-2xl hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition-colors group" title="Dasbor Admin">
+          <i class="fa-solid fa-layer-group text-lg"></i>
+        </button>
+
+        <button @click="router.push('/categories')" class="w-12 h-12 rounded-2xl hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition-colors group" title="Kategori">
+          <i class="fa-solid fa-tags text-lg"></i>
+        </button>
+      </div>
+
+      <div class="mt-auto">
+        <button @click="toggleTheme" class="w-12 h-12 rounded-2xl hover:bg-slate-100 dark:hover:bg-gray-700 text-gray-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors">
+          <i :class="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Secondary Sidebar (Location List) -->
+    <div class="w-full max-w-[340px] md:max-w-[400px] bg-slate-900/80 backdrop-blur-xl flex flex-col h-full shadow-2xl z-10 shrink-0 border-r border-white/10 transition-transform duration-300" :class="{'translate-x-0': true}">
+      <div class="p-6 pb-2">
+        <div class="flex justify-between items-center mb-6">
+          <h1 class="text-2xl font-bold tracking-tight text-white">Lokasi</h1>
+          <button class="w-8 h-8 rounded-full border border-white/20 flex justify-center items-center text-gray-400 hover:bg-white/10 transition-colors">
+            <i class="fa-solid fa-ellipsis-vertical"></i>
+          </button>
+        </div>
+
+        <!-- Search -->
+        <div class="relative mb-6">
+          <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+          <input v-model="searchQuery" type="text" placeholder="Cari lokasi..." class="w-full bg-slate-800/80 border border-white/10 rounded-2xl pl-10 pr-4 py-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all shadow-inner">
+        </div>
+      </div>
+
+      <!-- List -->
+      <div class="flex-1 overflow-y-auto px-4 pb-6 space-y-4 custom-scrollbar py-5">
+        <div v-for="loc in filteredLocations" :key="loc.id" 
+             @click="focusLocation(loc)"
+             class="bg-slate-800/60 p-4 rounded-3xl cursor-pointer hover:bg-slate-700/80 hover:shadow-lg border border-white/5 transition-all duration-200 group"
+             :class="selectedLocation?.id === loc.id ? 'ring-2 ring-teal-500 shadow-lg' : 'shadow-sm'">
+          
+          <div class="flex flex-col gap-2 mb-3 min-w-0">
+            <div class="flex items-start">
+                <!-- Category Tag (Pill) -->
+                <span class="px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider whitespace-normal leading-tight" 
+                      :style="{ backgroundColor: getCategoryDetails(loc.category).color + '20', color: getCategoryDetails(loc.category).color }">
+                  {{ loc.category }}
+                </span>
+            </div>
+            <h3 class="font-bold text-base leading-snug text-white group-hover:text-teal-400 transition-colors break-words">{{ loc.name }}</h3>
+          </div>
+          
+          <div class="flex flex-col text-xs text-gray-400 font-medium bg-slate-900/60 p-3 rounded-xl gap-2 mt-1">
+             <div class="flex items-center gap-2">
+                <i class="fa-solid fa-location-dot text-gray-500 w-3 text-center"></i>
+                <span class="text-gray-300 truncate">{{ loc.address || loc.district || 'Alamat tidak tersedia' }}</span>
+             </div>
+             <div class="flex items-center gap-2">
+                <i class="fa-solid fa-clock text-gray-500 w-3 text-center"></i>
+                <span class="text-gray-400 truncate">{{ loc.operating_hours || 'Jam operasional tidak tersedia' }}</span>
+             </div>
+             <div v-if="loc.description" class="flex items-start gap-2 mt-1 border-t border-white/5 pt-2">
+                <i class="fa-solid fa-align-left text-gray-500 w-3 text-center mt-0.5"></i>
+                <span class="text-gray-400 line-clamp-2 text-[10px] leading-relaxed">{{ loc.description }}</span>
+             </div>
+          </div>
+        </div>
+        <div v-if="filteredLocations.length === 0" class="text-center text-gray-500 text-sm mt-10">
+          Lokasi tidak ditemukan.
         </div>
       </div>
     </div>
-    
-    <!-- Modal -->
-    <LocationModal 
-      v-if="isModalOpen" 
-      :location="selectedLocation" 
-      :clicked-coords="clickedCoords"
-      @close="closeModal" 
-      @save="handleSave" 
-    />
+
+    <!-- Main Content Area -->
+    <div class="flex-1 relative h-full">
+      
+      <!-- Current Region Indicator over Map -->
+      <div @click="isRegionModalOpen = true" class="absolute top-4 right-14 z-[400] bg-white/90 dark:bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-md border border-gray-200 dark:border-slate-700 cursor-pointer flex items-center gap-2 transition-all hover:bg-gray-50 dark:hover:bg-slate-700 hover:scale-105 group">
+         <i class="fa-solid fa-map-location-dot text-teal-500 group-hover:scale-110 transition-transform"></i>
+         <span class="text-sm font-bold text-slate-700 dark:text-gray-200">
+             {{ selectedProvince ? selectedProvince.name : 'Seluruh Indonesia' }}{{ selectedRegency ? ' - ' + selectedRegency.name : '' }}
+         </span>
+         <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 ml-1"></i>
+      </div>
+
+      <MapViewer 
+        :locations="filteredLocations" 
+        :categories="categories"
+        :focusedLocation="focusedLocation"
+        :geoJsonData="regencyGeoJson"
+        :showRegionButton="true"
+        @open-region-modal="isRegionModalOpen = true"
+        @map-click="handleMapClick"
+        @edit-location="editLocation"
+        @delete-location="deleteLocation"
+        @district-selected="onDistrictSelected"
+        @location-selected="onLocationSelected"
+        @route-info="handleRouteInfo"
+      />
+
+      <!-- Floating Bottom Card (District Stats) -->
+      <transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform translate-y-20 opacity-0" enter-to-class="transform translate-y-0 opacity-100" leave-active-class="transition duration-200 ease-in" leave-from-class="transform translate-y-0 opacity-100" leave-to-class="transform translate-y-20 opacity-0">
+        <div v-if="selectedDistrict && districtStats" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-11/12 max-w-2xl bg-slate-900/90 backdrop-blur-2xl rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-30 flex flex-col overflow-hidden border border-white/20 p-6">
+            <div class="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
+               <div>
+                  <h2 class="text-2xl font-black text-white tracking-tight mb-1">Kec. {{ districtStats.name }}</h2>
+                  <p class="text-sm font-medium text-teal-400 uppercase tracking-widest">Statistik Lokasi</p>
+               </div>
+               <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500/20 to-blue-500/20 flex items-center justify-center border border-white/10 shadow-inner">
+                  <span class="text-3xl font-black text-white">{{ districtStats.total }}</span>
+               </div>
+            </div>
+            
+            <div v-if="districtStats.total > 0" class="mb-2">
+               <DistrictChart :stats="districtStats.categories" />
+            </div>
+            <div v-else class="text-center py-8 text-gray-400 font-medium border-2 border-dashed border-white/10 rounded-2xl bg-white/5">
+               <i class="fa-solid fa-map-location-dot text-3xl mb-3 opacity-50 block"></i>
+               Belum ada data lokasi yang terdaftar di kecamatan ini.
+            </div>
+
+            <div class="flex gap-3 mt-6 pt-5 border-t border-white/10">
+               <button @click="router.push('/location/add?district=' + districtStats.name)" class="flex-1 py-3.5 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-400 hover:to-blue-400 text-white font-bold rounded-2xl transition-all shadow-[0_4px_20px_rgba(20,184,166,0.3)] hover:-translate-y-0.5">
+                 <i class="fa-solid fa-plus mr-2"></i> Tambah Titik di Sini
+               </button>
+               <button @click="selectedDistrict = null" class="px-8 py-3.5 bg-slate-700 text-white font-bold rounded-2xl hover:bg-slate-600 transition-colors shadow-lg">
+                 Tutup
+               </button>
+            </div>
+        </div>
+      </transition>
+
+      <!-- Floating Bottom Card (Details) -->
+      <transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform translate-y-20 opacity-0" enter-to-class="transform translate-y-0 opacity-100" leave-active-class="transition duration-200 ease-in" leave-from-class="transform translate-y-0 opacity-100" leave-to-class="transform translate-y-20 opacity-0">
+        <div v-if="selectedLocation && !selectedDistrict" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-11/12 max-w-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl rounded-[2rem] shadow-2xl z-20 flex overflow-hidden border border-white/50 dark:border-white/10">
+          
+          <!-- Image Section (Carousel) -->
+          <div class="w-1/3 bg-white/40 dark:bg-slate-800/40 relative overflow-hidden group">
+             <template v-if="selectedLocationImages.length > 0">
+                 <img :src="selectedLocationImages[currentImageIndex]" class="w-full h-full object-cover transition-opacity duration-300" :key="currentImageIndex" />
+                 
+                 <!-- Carousel Controls -->
+                 <div v-if="selectedLocationImages.length > 1" class="absolute inset-0 flex items-center justify-between p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                     <button @click.stop="prevImage" class="w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 backdrop-blur-sm transition-colors">
+                         <i class="fa-solid fa-chevron-left text-xs"></i>
+                     </button>
+                     <button @click.stop="nextImage" class="w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 backdrop-blur-sm transition-colors">
+                         <i class="fa-solid fa-chevron-right text-xs"></i>
+                     </button>
+                 </div>
+                 
+                 <!-- Dots -->
+                 <div v-if="selectedLocationImages.length > 1" class="absolute bottom-3 left-0 w-full flex justify-center gap-1.5">
+                     <div v-for="(_, index) in selectedLocationImages" :key="index" 
+                          class="w-1.5 h-1.5 rounded-full transition-all"
+                          :class="index === currentImageIndex ? 'bg-white scale-125' : 'bg-white/50'">
+                     </div>
+                 </div>
+             </template>
+             <div v-else class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
+                <i class="fa-solid fa-image text-4xl"></i>
+             </div>
+          </div>
+
+          <!-- Content Section -->
+          <div class="w-2/3 p-6 flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start mb-2">
+                <h2 class="text-2xl font-bold tracking-tight">{{ selectedLocation.name }}</h2>
+                <span class="px-3 py-1 rounded-xl text-xs font-bold uppercase tracking-wider" 
+                      :style="{ backgroundColor: getCategoryDetails(selectedLocation.category).color + '20', color: getCategoryDetails(selectedLocation.category).color }">
+                  {{ selectedLocation.category }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-500 mb-4 line-clamp-2">{{ selectedLocation.description || 'Tidak ada deskripsi.' }}</p>
+              
+              <div class="grid grid-cols-3 gap-4 mb-4">
+                <div>
+                  <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Alamat</p>
+                  <p class="text-sm font-medium text-slate-700 dark:text-gray-200 truncate" :title="selectedLocation.address">{{ selectedLocation.address || '-' }}</p>
+                </div>
+                <div>
+                  <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Kecamatan</p>
+                  <p class="text-sm font-medium text-slate-700 dark:text-gray-200">{{ selectedLocation.district || '-' }}</p>
+                </div>
+                <div>
+                  <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Jam Operasional</p>
+                  <p class="text-sm font-medium text-slate-700 dark:text-gray-200">{{ selectedLocation.operating_hours || '-' }}</p>
+                </div>
+              </div>
+
+              <!-- Route Info Block -->
+              <transition enter-active-class="transition duration-300 ease-out" enter-from-class="opacity-0 translate-y-2" enter-to-class="opacity-100 translate-y-0">
+                  <div v-if="routeInfo" class="flex gap-4 p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-teal-50 dark:from-slate-800 dark:to-slate-800 border border-blue-100 dark:border-slate-700 mb-4 shadow-inner">
+                      <div class="flex-1 flex items-center gap-3">
+                          <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                              <i class="fa-solid fa-route"></i>
+                          </div>
+                          <div>
+                              <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Jarak</p>
+                              <p class="text-sm font-black text-slate-800 dark:text-gray-100">{{ routeInfo.distance }}</p>
+                          </div>
+                      </div>
+                      <div class="w-px bg-blue-200 dark:bg-slate-700"></div>
+                      <div class="flex-1 flex items-center gap-3">
+                          <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                              <i class="fa-solid fa-clock"></i>
+                          </div>
+                          <div>
+                              <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Estimasi Waktu</p>
+                              <p class="text-sm font-black text-slate-800 dark:text-gray-100">{{ routeInfo.duration }}</p>
+                          </div>
+                      </div>
+                  </div>
+              </transition>
+            </div>
+
+            <div class="flex gap-3 mt-4 pt-4 border-t border-slate-200/50 dark:border-white/10">
+               <button @click="router.push(`/location/edit/${selectedLocation.id}`)" class="px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold rounded-2xl hover:bg-slate-800 dark:hover:bg-gray-100 transition-colors shadow-lg">
+                 Edit Lokasi
+               </button>
+               <button @click="deleteLocation(selectedLocation.id)" class="px-6 py-2.5 bg-red-600 text-white font-semibold rounded-2xl hover:bg-red-700 transition-colors shadow-lg">
+                 Hapus
+               </button>
+               <button @click="selectedLocation = null" class="px-6 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-semibold rounded-2xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors shadow-sm ml-auto">
+                 Tutup
+               </button>
+            </div>
+          </div>
+
+        </div>
+      </transition>
+    </div>
+
+    <!-- Region Selection Modal -->
+    <transition enter-active-class="transition duration-300 ease-out" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100" leave-active-class="transition duration-200 ease-in" leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
+      <div v-if="isRegionModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-slate-700">
+          <div class="p-6 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
+            <h2 class="text-xl font-bold text-slate-800 dark:text-white">Pilih Wilayah</h2>
+            <button @click="isRegionModalOpen = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+              <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+          </div>
+          
+          <div class="p-6 space-y-6">
+            <!-- Province -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Provinsi</label>
+              <div class="relative">
+                 <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                 <input type="text" v-model="provinceSearch" placeholder="Cari Provinsi..." class="w-full bg-slate-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 mb-2 text-slate-800 dark:text-white">
+              </div>
+              <div class="max-h-40 overflow-y-auto rounded-xl border border-gray-100 dark:border-slate-700 custom-scrollbar bg-slate-50 dark:bg-slate-900/30">
+                 <div @click="selectProvince(null)" class="px-4 py-2.5 text-sm cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors flex items-center justify-between" :class="!selectedProvince ? 'bg-teal-500 text-white font-bold dark:bg-teal-600' : 'text-slate-700 dark:text-gray-300 italic'">
+                     <span>Semua Provinsi</span>
+                     <i v-if="!selectedProvince" class="fa-solid fa-check"></i>
+                 </div>
+                 <div v-for="prov in filteredProvincesList" :key="prov.id" 
+                      @click="selectProvince(prov)"
+                      class="px-4 py-2.5 text-sm cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors flex items-center justify-between"
+                      :class="selectedProvince?.id === prov.id ? 'bg-teal-500 text-white font-bold dark:bg-teal-600' : 'text-slate-700 dark:text-gray-300'">
+                   <span>{{ prov.name }}</span>
+                   <i v-if="selectedProvince?.id === prov.id" class="fa-solid fa-check"></i>
+                 </div>
+              </div>
+            </div>
+
+            <!-- Regency -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Kabupaten / Kota</label>
+              <div class="relative">
+                 <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                 <input type="text" v-model="regencySearch" placeholder="Cari Kabupaten/Kota..." :disabled="!selectedProvince" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 mb-2 disabled:opacity-50 text-slate-800 dark:text-white">
+              </div>
+              <div class="max-h-40 overflow-y-auto rounded-xl border border-gray-100 dark:border-slate-700 custom-scrollbar bg-slate-50 dark:bg-slate-900/30" :class="{'opacity-50 pointer-events-none': !selectedProvince}">
+                 <div @click="selectRegency(null)" class="px-4 py-2.5 text-sm cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors flex items-center justify-between" :class="!selectedRegency ? 'bg-teal-500 text-white font-bold dark:bg-teal-600' : 'text-slate-700 dark:text-gray-300 italic'">
+                     <span>Semua Kabupaten/Kota</span>
+                     <i v-if="!selectedRegency" class="fa-solid fa-check"></i>
+                 </div>
+                 <div v-for="reg in filteredRegenciesList" :key="reg.id" 
+                      @click="selectRegency(reg)"
+                      class="px-4 py-2.5 text-sm cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors flex items-center justify-between"
+                      :class="selectedRegency?.id === reg.id ? 'bg-teal-500 text-white font-bold dark:bg-teal-600' : 'text-slate-700 dark:text-gray-300'">
+                   <span>{{ reg.name }}</span>
+                   <i v-if="selectedRegency?.id === reg.id" class="fa-solid fa-check"></i>
+                 </div>
+              </div>
+            </div>
+          </div>
+          <div class="p-6 border-t border-gray-100 dark:border-slate-700 flex justify-end">
+             <button @click="isRegionModalOpen = false" class="px-6 py-2.5 bg-teal-500 text-white font-semibold rounded-xl hover:bg-teal-600 transition-colors shadow-lg">
+               Selesai
+             </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
-import Chart from 'chart.js/auto'
-import StatsCard from '../components/StatsCard.vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useToast } from '../composables/useToast'
 import MapViewer from '../components/MapViewer.vue'
-import LocationModal from '../components/LocationModal.vue'
+import DistrictChart from '../components/DistrictChart.vue'
+
+const router = useRouter()
+const toast = useToast()
+const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
+const hostUrl = baseUrl.replace('/api', '')
 
 const locations = ref([])
-const stats = ref({})
-const isModalOpen = ref(false)
+const categories = ref([])
 const selectedLocation = ref(null)
-const clickedCoords = ref(null)
-let chartInstance = null
+const focusedLocation = ref(null)
+const selectedDistrict = ref(null)
+const districtStats = ref(null)
+const routeInfo = ref(null)
+const searchQuery = ref('')
+const isDark = ref(false)
+const currentImageIndex = ref(0)
 
-const topDistrict = computed(() => {
-    if (!stats.value.districts || stats.value.districts.length === 0) return 'N/A'
-    const sorted = [...stats.value.districts].sort((a, b) => b.count - a.count)
-    return sorted[0].district || 'N/A'
-})
+const provincesList = ref([])
+const regenciesList = ref([])
+const selectedProvince = ref('')
+const selectedRegency = ref('')
+const regencyGeoJson = ref(null)
+
+const isRegionModalOpen = ref(false)
+const provinceSearch = ref('')
+const regencySearch = ref('')
+
+const filteredProvincesList = computed(() => {
+    if (!provinceSearch.value) return provincesList.value;
+    const q = provinceSearch.value.toLowerCase();
+    return provincesList.value.filter(p => p.name.toLowerCase().includes(q));
+});
+
+const filteredRegenciesList = computed(() => {
+    if (!regencySearch.value) return regenciesList.value;
+    const q = regencySearch.value.toLowerCase();
+    return regenciesList.value.filter(r => r.name.toLowerCase().includes(q));
+});
+
+const selectProvince = (prov) => {
+    selectedProvince.value = prov;
+    onProvinceChange();
+}
+
+const selectRegency = (reg) => {
+    selectedRegency.value = reg;
+    onRegencyChange();
+}
+
+const getCategoryDetails = (categoryName) => {
+    if (categories.value.length > 0) {
+        const cat = categories.value.find(c => c.name === categoryName);
+        if (cat) return cat;
+    }
+    return { color: '#64748b', icon_name: 'fa-solid fa-location-dot' };
+}
+
+const toggleTheme = () => {
+  isDark.value = !isDark.value;
+  if (isDark.value) {
+    document.documentElement.classList.add('dark');
+    localStorage.setItem('theme', 'dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+    localStorage.setItem('theme', 'light');
+  }
+}
 
 const fetchData = async () => {
     try {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-        const [locRes, statsRes] = await Promise.all([
+        const [locRes, catRes, provRes] = await Promise.all([
             fetch(`${baseUrl}/locations`),
-            fetch(`${baseUrl}/stats`)
+            fetch(`${baseUrl}/categories`),
+            fetch(`${baseUrl}/provinces`)
         ])
-        locations.value = await locRes.json()
-        stats.value = await statsRes.json()
-        updateChart()
+        
+        if(locRes.ok) locations.value = await locRes.json()
+        if(catRes.ok) categories.value = await catRes.json()
+        if(provRes.ok) provincesList.value = await provRes.json()
     } catch (e) {
-        console.error("Error fetching data:", e)
+        console.error("Failed to fetch data", e)
     }
 }
 
-const updateChart = () => {
-    if (!stats.value.categories) return
+const onProvinceChange = async () => {
+    selectedRegency.value = null;
+    regencyGeoJson.value = null;
+    regenciesList.value = [];
     
-    nextTick(() => {
-        const ctx = document.getElementById('categoryChart')
-        if (!ctx) return
-
-        if (chartInstance) {
-            chartInstance.destroy()
+    if (!selectedProvince.value) return;
+    
+    // Save to localStorage
+    localStorage.setItem('savedProvince', selectedProvince.value.name);
+    localStorage.removeItem('savedRegency'); // reset regency
+    
+    try {
+        const res = await fetch(`${baseUrl}/regencies?province_id=${selectedProvince.value.id}`);
+        if (res.ok) {
+            regenciesList.value = await res.json();
         }
+    } catch(e) {
+        console.error("Failed to fetch regencies", e);
+    }
 
-        const labels = stats.value.categories.map(c => c.category || 'Uncategorized')
-        const data = stats.value.categories.map(c => c.count)
-
-        chartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: [
-                        '#2dd4bf', // teal-400
-                        '#3b82f6', // blue-500
-                        '#8b5cf6', // violet-500
-                        '#f59e0b', // amber-500
-                        '#ec4899', // pink-500
-                    ],
-                    borderWidth: 0,
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: '#9ca3af', // gray-400
-                            padding: 20,
-                            font: { size: 12 }
-                        }
-                    }
-                },
-                cutout: '70%'
-            }
-        })
-    })
+    try {
+        const resGeo = await fetch(`${baseUrl}/provinces/${selectedProvince.value.id}/geojson`);
+        if (resGeo.ok) {
+            regencyGeoJson.value = await resGeo.json();
+        }
+    } catch(e) {
+        console.error("Failed to fetch province geojson", e);
+    }
 }
 
-const openModal = (location = null) => {
-    selectedLocation.value = location
-    clickedCoords.value = null
-    isModalOpen.value = true
+const onRegencyChange = async () => {
+    if (!selectedRegency.value) {
+        localStorage.removeItem('savedRegency');
+        if (selectedProvince.value) {
+            try {
+                const resGeo = await fetch(`${baseUrl}/provinces/${selectedProvince.value.id}/geojson`);
+                if (resGeo.ok) regencyGeoJson.value = await resGeo.json();
+            } catch(e) {}
+        } else {
+            regencyGeoJson.value = null;
+        }
+        return;
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('savedRegency', selectedRegency.value.name);
+    
+    regencyGeoJson.value = null;
+    try {
+        const res = await fetch(`${baseUrl}/regencies/${selectedRegency.value.id}/geojson`);
+        if (res.ok) {
+            regencyGeoJson.value = await res.json();
+        }
+    } catch (e) {
+        console.error("Failed to fetch geojson", e);
+    }
+}
+
+const filteredLocations = computed(() => {
+    let result = locations.value;
+    
+    if (selectedProvince.value) {
+        result = result.filter(loc => loc.province === selectedProvince.value.name);
+    }
+    
+    if (selectedRegency.value) {
+        result = result.filter(loc => loc.city === selectedRegency.value.name);
+    }
+
+    if (!searchQuery.value) return result;
+    const query = searchQuery.value.toLowerCase();
+    return result.filter(loc => 
+        loc.name.toLowerCase().includes(query) || 
+        loc.category.toLowerCase().includes(query) ||
+        (loc.address && loc.address.toLowerCase().includes(query))
+    );
+})
+
+const onLocationSelected = (loc) => {
+    selectedLocation.value = loc;
+    focusedLocation.value = loc;
+    currentImageIndex.value = 0; // reset carousel
+    selectedDistrict.value = null; // hide district card if open
+    routeInfo.value = null; // Clear previous route info
+};
+
+const handleRouteInfo = (info) => {
+    routeInfo.value = info;
+};
+
+const onDistrictSelected = (districtName) => {
+    selectedLocation.value = null; // hide location card
+    selectedDistrict.value = districtName;
+    
+    // Calculate stats
+    const locsInDistrict = locations.value.filter(loc => 
+       loc.district && loc.district.toLowerCase() === districtName.toLowerCase()
+    );
+    
+    const total = locsInDistrict.length;
+    
+    // Group by category
+    const categoryCounts = {};
+    locsInDistrict.forEach(loc => {
+        categoryCounts[loc.category] = (categoryCounts[loc.category] || 0) + 1;
+    });
+    
+    districtStats.value = {
+        name: districtName,
+        total: total,
+        categories: Object.keys(categoryCounts).map(cat => ({
+            name: cat,
+            count: categoryCounts[cat],
+            color: getCategoryDetails(cat).color,
+            icon: getCategoryDetails(cat).icon_name
+        }))
+    };
+};
+
+const focusLocation = (loc) => {
+    focusedLocation.value = { ...loc, _timestamp: Date.now() };
+    onLocationSelected(loc);
 }
 
 const handleMapClick = (coords) => {
-    selectedLocation.value = null
-    clickedCoords.value = coords
-    isModalOpen.value = true
-}
-
-const closeModal = () => {
-    isModalOpen.value = false
-    selectedLocation.value = null
-    clickedCoords.value = null
-}
-
-const handleSave = () => {
-    closeModal()
-    fetchData()
-}
-
-const deleteLocation = async (id) => {
-    if(!confirm("Are you sure you want to delete this location?")) return;
-    try {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-        await fetch(`${baseUrl}/locations/${id}`, { method: 'DELETE' })
-        fetchData()
-    } catch (e) {
-        console.error("Delete failed", e)
+    selectedLocation.value = null;
+    selectedDistrict.value = null;
+    routeInfo.value = null;
+    if (confirm("Tambahkan titik baru di koordinat ini?")) {
+        router.push(`/location/add?lat=${coords.lat}&lng=${coords.lng}`);
     }
 }
 
+const deleteLocation = async (id) => {
+    if(confirm('Apakah Anda yakin ingin menghapus lokasi ini? Data tidak dapat dikembalikan.')) {
+        try {
+            const res = await fetch(`${baseUrl}/locations/${id}`, {
+                method: 'DELETE'
+            });
+            if(res.ok) {
+                toast.success('Lokasi berhasil dihapus!');
+                selectedLocation.value = null;
+                fetchData();
+            } else {
+                toast.error('Gagal menghapus lokasi dari server.');
+            }
+        } catch(err) {
+            toast.error('Terjadi kesalahan jaringan.');
+        }
+    }
+}
+
+const selectedLocationImages = computed(() => {
+    const rawImages = selectedLocation.value?.image || selectedLocation.value?.images;
+    if (!selectedLocation.value || !rawImages) return [];
+    try {
+        let images = typeof rawImages === 'string' 
+            ? JSON.parse(rawImages) 
+            : rawImages;
+        if (images && images.length > 0) {
+            return images.map(img => img.startsWith('http') ? img : `${hostUrl}${img}`);
+        }
+    } catch(e) {}
+    return [];
+})
+
+const prevImage = () => {
+    if(selectedLocationImages.value.length === 0) return;
+    currentImageIndex.value = currentImageIndex.value === 0 
+        ? selectedLocationImages.value.length - 1 
+        : currentImageIndex.value - 1;
+}
+
+const nextImage = () => {
+    if(selectedLocationImages.value.length === 0) return;
+    currentImageIndex.value = currentImageIndex.value === selectedLocationImages.value.length - 1 
+        ? 0 
+        : currentImageIndex.value + 1;
+}
+
 onMounted(() => {
-    fetchData()
+    const savedTheme = localStorage.getItem('theme')
+    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        isDark.value = true;
+        document.documentElement.classList.add('dark');
+    }
+    fetchData().then(() => {
+        if (provincesList.value.length > 0) {
+            const savedProvName = localStorage.getItem('savedProvince') || 'Sulawesi Selatan';
+            const defaultProv = provincesList.value.find(p => p.name.toLowerCase() === savedProvName.toLowerCase());
+            
+            if (defaultProv) {
+                selectedProvince.value = defaultProv;
+                onProvinceChange().then(() => {
+                    const savedRegName = localStorage.getItem('savedRegency') || 'Kota Makassar';
+                    const defaultReg = regenciesList.value.find(r => r.name.toLowerCase() === savedRegName.toLowerCase());
+                    if (defaultReg) {
+                        selectedRegency.value = defaultReg;
+                        onRegencyChange();
+                    }
+                });
+            }
+        }
+    })
 })
 </script>
+
+<style>
+/* Custom Scrollbar for sidebar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.8);
+}
+</style>
