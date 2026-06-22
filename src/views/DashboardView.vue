@@ -107,6 +107,10 @@
         :focusedLocation="focusedLocation"
         :geoJsonData="regencyGeoJson"
         :showRegionButton="true"
+        :showBuffer="isBufferModeActive && !!selectedLocation"
+        :bufferCenter="selectedLocation ? { lat: selectedLocation.lat, lng: selectedLocation.lng } : null"
+        :bufferRadius="bufferRadius"
+        :nearbyCampuses="nearbyCampuses"
         @open-region-modal="isRegionModalOpen = true"
         @map-click="handleMapClick"
         @edit-location="editLocation"
@@ -182,67 +186,169 @@
 
           <!-- Content Section -->
           <div class="w-2/3 p-6 flex flex-col justify-between">
-            <div>
-              <div class="flex justify-between items-start mb-2">
-                <h2 class="text-2xl font-bold tracking-tight">{{ selectedLocation.name }}</h2>
-                <span class="px-3 py-1 rounded-xl text-xs font-bold uppercase tracking-wider" 
-                      :style="{ backgroundColor: getCategoryDetails(selectedLocation.category).color + '20', color: getCategoryDetails(selectedLocation.category).color }">
-                  {{ selectedLocation.category }}
-                </span>
-              </div>
-              <p class="text-sm text-gray-500 mb-4 line-clamp-2">{{ selectedLocation.description || 'Tidak ada deskripsi.' }}</p>
-              
-              <div class="grid grid-cols-3 gap-4 mb-4">
-                <div>
-                  <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Alamat</p>
-                  <p class="text-sm font-medium text-slate-700 dark:text-gray-200 truncate" :title="selectedLocation.address">{{ selectedLocation.address || '-' }}</p>
+            <div v-if="!isBufferModeActive" class="flex-1 flex flex-col justify-between">
+              <div>
+                <div class="flex justify-between items-start mb-2">
+                  <h2 class="text-2xl font-bold tracking-tight">{{ selectedLocation.name }}</h2>
+                  <span class="px-3 py-1 rounded-xl text-xs font-bold uppercase tracking-wider" 
+                        :style="{ backgroundColor: getCategoryDetails(selectedLocation.category).color + '20', color: getCategoryDetails(selectedLocation.category).color }">
+                    {{ selectedLocation.category }}
+                  </span>
                 </div>
-                <div>
-                  <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Kecamatan</p>
-                  <p class="text-sm font-medium text-slate-700 dark:text-gray-200">{{ selectedLocation.district || '-' }}</p>
+                <p class="text-sm text-gray-500 mb-4 line-clamp-2">{{ selectedLocation.description || 'Tidak ada deskripsi.' }}</p>
+                
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Alamat</p>
+                    <p class="text-sm font-medium text-slate-700 dark:text-gray-200 truncate" :title="selectedLocation.address">{{ selectedLocation.address || '-' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Kecamatan</p>
+                    <p class="text-sm font-medium text-slate-700 dark:text-gray-200">{{ selectedLocation.district || '-' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Jam Operasional</p>
+                    <p class="text-sm font-medium text-slate-700 dark:text-gray-200">{{ selectedLocation.operating_hours || '-' }}</p>
+                  </div>
                 </div>
-                <div>
-                  <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Jam Operasional</p>
-                  <p class="text-sm font-medium text-slate-700 dark:text-gray-200">{{ selectedLocation.operating_hours || '-' }}</p>
-                </div>
+
+                <!-- Route Info Block -->
+                <transition enter-active-class="transition duration-300 ease-out" enter-from-class="opacity-0 translate-y-2" enter-to-class="opacity-100 translate-y-0">
+                    <div v-if="routeInfo" class="flex gap-4 p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-teal-50 dark:from-slate-800 dark:to-slate-800 border border-blue-100 dark:border-slate-700 mb-4 shadow-inner">
+                        <div class="flex-1 flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                <i class="fa-solid fa-route"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Jarak</p>
+                                <p class="text-sm font-black text-slate-800 dark:text-gray-100">{{ routeInfo.distance }}</p>
+                            </div>
+                        </div>
+                        <div class="w-px bg-blue-200 dark:bg-slate-700"></div>
+                        <div class="flex-1 flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Estimasi Waktu</p>
+                                <p class="text-sm font-black text-slate-800 dark:text-gray-100">{{ routeInfo.duration }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </transition>
               </div>
 
-              <!-- Route Info Block -->
-              <transition enter-active-class="transition duration-300 ease-out" enter-from-class="opacity-0 translate-y-2" enter-to-class="opacity-100 translate-y-0">
-                  <div v-if="routeInfo" class="flex gap-4 p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-teal-50 dark:from-slate-800 dark:to-slate-800 border border-blue-100 dark:border-slate-700 mb-4 shadow-inner">
-                      <div class="flex-1 flex items-center gap-3">
-                          <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                              <i class="fa-solid fa-route"></i>
-                          </div>
-                          <div>
-                              <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Jarak</p>
-                              <p class="text-sm font-black text-slate-800 dark:text-gray-100">{{ routeInfo.distance }}</p>
-                          </div>
-                      </div>
-                      <div class="w-px bg-blue-200 dark:bg-slate-700"></div>
-                      <div class="flex-1 flex items-center gap-3">
-                          <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                              <i class="fa-solid fa-clock"></i>
-                          </div>
-                          <div>
-                              <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Estimasi Waktu</p>
-                              <p class="text-sm font-black text-slate-800 dark:text-gray-100">{{ routeInfo.duration }}</p>
-                          </div>
-                      </div>
-                  </div>
-              </transition>
+              <div class="flex items-center flex-wrap gap-2 mt-4 pt-4 border-t border-slate-200/50 dark:border-white/10">
+                 <button @click="router.push(`/location/edit/${selectedLocation.id}`)" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl hover:bg-slate-800 dark:hover:bg-gray-100 transition-all shadow-md flex items-center gap-1.5 whitespace-nowrap">
+                   <i class="fa-solid fa-pen-to-square text-xs"></i> Edit
+                 </button>
+                 <button @click="deleteLocation(selectedLocation.id)" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-md flex items-center gap-1.5 whitespace-nowrap">
+                   <i class="fa-solid fa-trash text-xs"></i> Hapus
+                 </button>
+                 <!-- Buffer Analysis Trigger Button -->
+                 <button @click="isBufferModeActive = true" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-sky-500 hover:bg-sky-600 text-white rounded-xl transition-all shadow-md shadow-sky-500/20 flex items-center gap-1.5 whitespace-nowrap animate-pulse hover:animate-none">
+                   <i class="fa-solid fa-circle-dot text-xs"></i> Analisis Buffer
+                 </button>
+                 <button @click="selectedLocation = null" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-1.5 whitespace-nowrap ml-auto">
+                   Tutup
+                 </button>
+              </div>
             </div>
 
-            <div class="flex gap-3 mt-4 pt-4 border-t border-slate-200/50 dark:border-white/10">
-               <button @click="router.push(`/location/edit/${selectedLocation.id}`)" class="px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold rounded-2xl hover:bg-slate-800 dark:hover:bg-gray-100 transition-colors shadow-lg">
-                 Edit Lokasi
-               </button>
-               <button @click="deleteLocation(selectedLocation.id)" class="px-6 py-2.5 bg-red-600 text-white font-semibold rounded-2xl hover:bg-red-700 transition-colors shadow-lg">
-                 Hapus
-               </button>
-               <button @click="selectedLocation = null" class="px-6 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-semibold rounded-2xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors shadow-sm ml-auto">
-                 Tutup
-               </button>
+            <!-- Buffer Analysis View -->
+            <div v-else class="flex-1 flex flex-col justify-between min-h-[300px]">
+              <div>
+                <div class="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                      <i class="fa-solid fa-circle-dot text-sky-500 animate-pulse"></i>
+                      Analisis Buffer Kampus
+                    </h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Menampilkan kampus terdekat dari <span class="font-semibold text-slate-700 dark:text-gray-200">{{ selectedLocation.name }}</span>
+                    </p>
+                  </div>
+                  <span class="px-3 py-1 rounded-xl text-xs font-bold uppercase tracking-wider bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                    Mode Buffer
+                  </span>
+                </div>
+
+                <!-- Radius Slider Control -->
+                <div class="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-4 shadow-sm">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Radius Jangkauan</span>
+                    <span class="text-sm font-black text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-lg">
+                      {{ (bufferRadius / 1000).toFixed(1) }} km ({{ bufferRadius }} meter)
+                    </span>
+                  </div>
+                  <input 
+                    v-model.number="bufferRadius" 
+                    type="range" 
+                    min="500" 
+                    max="10000" 
+                    step="500" 
+                    class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-500 focus:outline-none"
+                  >
+                  <div class="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 px-0.5">
+                    <span>500 m</span>
+                    <span>2.5 km</span>
+                    <span>5 km</span>
+                    <span>7.5 km</span>
+                    <span>10 km</span>
+                  </div>
+                </div>
+
+                <!-- Nearest Campuses List -->
+                <div>
+                  <div class="flex justify-between items-center mb-2 px-1">
+                    <span class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Kampus Terdekat ({{ nearbyCampuses.length }})</span>
+                  </div>
+                  
+                  <div class="max-h-[140px] overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+                    <div 
+                      v-for="campus in nearbyCampuses" 
+                      :key="campus.id"
+                      @click="focusLocation(campus)"
+                      class="flex items-center justify-between p-3 bg-white dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-sky-500/50 dark:hover:border-sky-500/50 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-sm transition-all group"
+                    >
+                      <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 shadow-sm"
+                             :style="{ backgroundColor: getCategoryDetails(campus.category).color }">
+                          <i :class="getCategoryDetails(campus.category).icon_name || 'fa-solid fa-graduation-cap'" class="text-xs"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <h4 class="font-bold text-sm text-slate-800 dark:text-gray-200 truncate group-hover:text-sky-500 transition-colors">
+                            {{ campus.name }}
+                          </h4>
+                          <p class="text-[10px] text-gray-400 dark:text-gray-500 truncate">
+                            {{ campus.address || campus.district || 'Alamat tidak tersedia' }}
+                          </p>
+                        </div>
+                      </div>
+                      <div class="text-right shrink-0 pl-3">
+                        <span class="text-xs font-extrabold text-teal-600 dark:text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-lg">
+                          {{ campus.distance > 1000 ? (campus.distance / 1000).toFixed(2) + ' km' : Math.round(campus.distance) + ' m' }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div v-if="nearbyCampuses.length === 0" class="text-center py-6 text-xs text-gray-400 dark:text-gray-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/10">
+                      <i class="fa-solid fa-circle-exclamation text-lg mb-1.5 opacity-50 block"></i>
+                      Tidak ada kampus dalam radius ini.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Bar (Buffer Mode) -->
+              <div class="flex items-center flex-wrap gap-2 mt-4 pt-4 border-t border-slate-200/50 dark:border-white/10">
+                <button @click="isBufferModeActive = false" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl hover:bg-slate-800 dark:hover:bg-gray-100 transition-all shadow-md flex items-center gap-1.5 whitespace-nowrap">
+                  <i class="fa-solid fa-arrow-left text-xs"></i> Kembali
+                </button>
+                <button @click="selectedLocation = null" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-1.5 whitespace-nowrap ml-auto">
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
 
@@ -350,6 +456,10 @@ const regencyGeoJson = ref(null)
 const isRegionModalOpen = ref(false)
 const provinceSearch = ref('')
 const regencySearch = ref('')
+
+// Buffer Analysis State
+const isBufferModeActive = ref(false)
+const bufferRadius = ref(2000) // Default 2 km (2000m)
 
 const filteredProvincesList = computed(() => {
     if (!provinceSearch.value) return provincesList.value;
@@ -489,12 +599,52 @@ const filteredLocations = computed(() => {
     );
 })
 
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // Earth radius in meters
+    const phi1 = lat1 * Math.PI / 180;
+    const phi2 = lat2 * Math.PI / 180;
+    const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+    const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+    
+    const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+              Math.cos(phi1) * Math.cos(phi2) *
+              Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    
+    return R * c; // distance in meters
+}
+
+const isCampus = (category) => {
+    if (!category) return false;
+    const catLower = category.toLowerCase();
+    return catLower.includes('perguruan tinggi') || catLower.includes('kampus') || catLower.includes('universitas') || catLower.includes('akadem') || catLower.includes('institut');
+}
+
+const nearbyCampuses = computed(() => {
+    if (!selectedLocation.value) return [];
+    const centerLat = selectedLocation.value.lat;
+    const centerLng = selectedLocation.value.lng;
+    
+    return locations.value
+        .filter(loc => loc.id !== selectedLocation.value.id && isCampus(loc.category))
+        .map(loc => {
+            const dist = calculateDistance(centerLat, centerLng, loc.lat, loc.lng);
+            return {
+                ...loc,
+                distance: dist
+            };
+        })
+        .filter(loc => loc.distance <= bufferRadius.value)
+        .sort((a, b) => a.distance - b.distance);
+})
+
 const onLocationSelected = (loc) => {
     selectedLocation.value = loc;
     focusedLocation.value = loc;
     currentImageIndex.value = 0; // reset carousel
     selectedDistrict.value = null; // hide district card if open
     routeInfo.value = null; // Clear previous route info
+    isBufferModeActive.value = false; // Reset buffer mode
 };
 
 const handleRouteInfo = (info) => {
@@ -563,6 +713,7 @@ const handleMapClick = (coords) => {
     selectedLocation.value = null;
     selectedDistrict.value = null;
     routeInfo.value = null;
+    isBufferModeActive.value = false; // Reset buffer mode
     if (confirm('Tambahkan titik baru di koordinat ini?')) {
         const query = buildAddQuery({ lat: coords.lat, lng: coords.lng });
         router.push('/location/add?' + query);

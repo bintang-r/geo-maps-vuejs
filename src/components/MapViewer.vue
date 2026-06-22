@@ -17,15 +17,17 @@
 </template>
 
 <script setup>
-import { onMounted, watch, ref } from 'vue'
+import { onMounted, onUnmounted, watch, ref } from 'vue'
 import L from 'leaflet'
 
-const props = defineProps(['locations', 'focusedLocation', 'categories', 'geoJsonData', 'showRegionButton'])
+const props = defineProps(['locations', 'focusedLocation', 'categories', 'geoJsonData', 'showRegionButton', 'showBuffer', 'bufferCenter', 'bufferRadius', 'nearbyCampuses'])
 const emit = defineEmits(['map-click', 'edit-location', 'delete-location', 'district-selected', 'location-selected', 'route-info', 'open-region-modal'])
 
 let map = null;
 let markersLayer = null;
 let choroplethLayer = null;
+let bufferCircle = null;
+let bufferLinesGroup = null;
 
 // Live Location & Routing State
 let userMarker = null;
@@ -222,6 +224,61 @@ watch(() => props.focusedLocation, (newVal) => {
         emit('route-info', null);
     }
 }, { deep: true })
+
+watch(() => [props.showBuffer, props.bufferCenter, props.bufferRadius, props.nearbyCampuses], () => {
+    updateBufferLayer();
+}, { deep: true })
+
+const updateBufferLayer = () => {
+    if (bufferCircle && map) {
+        map.removeLayer(bufferCircle);
+        bufferCircle = null;
+    }
+    if (bufferLinesGroup && map) {
+        map.removeLayer(bufferLinesGroup);
+        bufferLinesGroup = null;
+    }
+    
+    if (!props.showBuffer || !props.bufferCenter || !map) return;
+    
+    const { lat, lng } = props.bufferCenter;
+    
+    // Draw buffer circle
+    bufferCircle = L.circle([lat, lng], {
+        radius: props.bufferRadius,
+        color: '#0ea5e9', // Sky blue border
+        fillColor: '#38bdf8', // Sky blue fill
+        fillOpacity: 0.15,
+        weight: 2,
+        dashArray: '5, 5'
+    }).addTo(map);
+    
+    // Draw connector lines to nearby campuses
+    bufferLinesGroup = L.layerGroup().addTo(map);
+    
+    if (props.nearbyCampuses && props.nearbyCampuses.length > 0) {
+        props.nearbyCampuses.forEach(loc => {
+            L.polyline([[lat, lng], [loc.lat, loc.lng]], {
+                color: '#14b8a6', // Teal
+                weight: 1.5,
+                opacity: 0.7,
+                dashArray: '4, 4'
+            }).addTo(bufferLinesGroup);
+        });
+    }
+    
+    // Fit bounds to show the entire buffer area
+    try {
+        map.fitBounds(bufferCircle.getBounds(), { padding: [50, 50], maxZoom: 16 });
+    } catch(e) {
+        console.error("Fit bounds error:", e);
+    }
+}
+
+onUnmounted(() => {
+    if (bufferCircle && map) map.removeLayer(bufferCircle);
+    if (bufferLinesGroup && map) map.removeLayer(bufferLinesGroup);
+})
 
 const clearRoute = () => {
     if (routeLayer && map) {
