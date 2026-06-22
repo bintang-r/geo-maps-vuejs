@@ -518,6 +518,53 @@ const fetchData = async () => {
     }
 }
 
+const loadAllRegenciesGeoJson = async (province) => {
+    if (!province) return null;
+    try {
+        const res = await fetch(`${baseUrl}/regencies?province_id=${province.id}`);
+        if (!res.ok) return null;
+        const regencies = await res.json();
+        
+        if (regencies.length > 0) {
+            const geojsonPromises = regencies.map(async (reg) => {
+                try {
+                    const resGeo = await fetch(`${baseUrl}/regencies/${reg.id}/geojson`);
+                    if (resGeo.ok) return await resGeo.json();
+                } catch (e) {
+                    console.error(`Failed to fetch geojson for regency ${reg.name}`, e);
+                }
+                return null;
+            });
+            
+            const geojsonResults = await Promise.all(geojsonPromises);
+            const allFeatures = [];
+            geojsonResults.forEach(geo => {
+                if (geo && geo.features) {
+                    allFeatures.push(...geo.features);
+                }
+            });
+            
+            if (allFeatures.length > 0) {
+                return {
+                    type: 'FeatureCollection',
+                    features: allFeatures
+                };
+            }
+        }
+    } catch (e) {
+        console.error("Failed to load combined regencies GeoJSON", e);
+    }
+    
+    // Fallback to simplified province boundary if combine fails
+    try {
+        const resGeo = await fetch(`${baseUrl}/provinces/${province.id}/geojson`);
+        if (resGeo.ok) return await resGeo.json();
+    } catch (e) {
+        console.error("Failed to fetch fallback province GeoJSON", e);
+    }
+    return null;
+}
+
 const onProvinceChange = async (isUserAction = true) => {
     selectedRegency.value = null;
     regencyGeoJson.value = null;
@@ -541,24 +588,14 @@ const onProvinceChange = async (isUserAction = true) => {
         console.error("Failed to fetch regencies", e);
     }
 
-    try {
-        const resGeo = await fetch(`${baseUrl}/provinces/${selectedProvince.value.id}/geojson`);
-        if (resGeo.ok) {
-            regencyGeoJson.value = await resGeo.json();
-        }
-    } catch(e) {
-        console.error("Failed to fetch province geojson", e);
-    }
+    regencyGeoJson.value = await loadAllRegenciesGeoJson(selectedProvince.value);
 }
 
 const onRegencyChange = async () => {
     if (!selectedRegency.value) {
         localStorage.removeItem('savedRegency');
         if (selectedProvince.value) {
-            try {
-                const resGeo = await fetch(`${baseUrl}/provinces/${selectedProvince.value.id}/geojson`);
-                if (resGeo.ok) regencyGeoJson.value = await resGeo.json();
-            } catch(e) {}
+            regencyGeoJson.value = await loadAllRegenciesGeoJson(selectedProvince.value);
         } else {
             regencyGeoJson.value = null;
         }

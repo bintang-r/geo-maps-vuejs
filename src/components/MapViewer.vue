@@ -109,6 +109,26 @@ onMounted(() => {
 
     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
+    // Add Legend Control
+    const legend = L.control({ position: 'bottomleft' });
+    legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'info legend bg-slate-900/90 dark:bg-slate-950/95 text-white p-3 rounded-xl border border-slate-700/50 shadow-2xl text-[10px] font-sans backdrop-blur-md flex flex-col gap-1.5 min-w-[150px]');
+        div.innerHTML = `
+            <div class="font-extrabold mb-0.5 text-slate-200 border-b border-slate-700/40 pb-1 flex items-center gap-1.5">
+                <i class="fa-solid fa-layer-group text-teal-400"></i>
+                Kepadatan Kampus
+            </div>
+            <div class="flex flex-col gap-1.5 mt-0.5">
+                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-slate-600/40" style="background-color: #334155; opacity: 0.15;"></span> 0 Kampus (Sangat Rendah)</div>
+                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-teal-400/40" style="background-color: #2dd4bf; opacity: 0.40;"></span> 1 Kampus (Rendah)</div>
+                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-teal-600/40" style="background-color: #0d9488; opacity: 0.45;"></span> 2 Kampus (Sedang)</div>
+                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-teal-700/40" style="background-color: #0f766e; opacity: 0.50;"></span> 3+ Kampus (Tinggi)</div>
+            </div>
+        `;
+        return div;
+    };
+    legend.addTo(map);
+
     map.on('baselayerchange', (e) => {
         localStorage.setItem('mapLayer', e.name);
     });
@@ -120,8 +140,32 @@ onMounted(() => {
                 const districtName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '-';
                 const villageName = feature.properties.village || '-';
                 const count = getDistrictCount(districtName);
-                return `<div class="text-sm font-bold">Kecamatan ${districtName}</div><div class="text-xs font-medium text-slate-600 dark:text-gray-300">Kelurahan ${villageName}</div><div class="text-[10px] text-gray-500 mt-1">${count} Lokasi</div><div class="text-[10px] text-teal-600 mt-1">Klik untuk tambah lokasi di sini</div>`;
-            }, { sticky: true, className: 'glass-tooltip bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-xl px-3 py-2' });
+                
+                let densityLabel = 'Sangat Rendah (0)';
+                let colorClass = 'text-slate-400 dark:text-slate-500';
+                if (count === 1) {
+                    densityLabel = 'Rendah (1)';
+                    colorClass = 'text-emerald-500 font-bold';
+                } else if (count === 2) {
+                    densityLabel = 'Sedang (2)';
+                    colorClass = 'text-amber-500 font-bold';
+                } else if (count >= 3) {
+                    densityLabel = `Tinggi (${count})`;
+                    colorClass = 'text-rose-500 font-black';
+                }
+
+                return `
+                    <div class="text-slate-800 dark:text-gray-100 font-sans">
+                        <div class="text-xs font-extrabold text-teal-600 dark:text-teal-400">Kecamatan ${districtName}</div>
+                        <div class="text-[10px] text-slate-500 dark:text-gray-400">Kelurahan ${villageName}</div>
+                        <div class="text-[10px] text-slate-600 dark:text-gray-300 mt-1.5 border-t border-slate-700/10 pt-1 flex flex-col gap-0.5">
+                            <div>Jumlah Lokasi: <span class="font-bold text-slate-800 dark:text-white">${count} Kampus</span></div>
+                            <div>Kepadatan: <span class="font-extrabold ${colorClass}">${densityLabel}</span></div>
+                        </div>
+                        <div class="text-[9px] text-teal-500/80 mt-1 italic">Klik untuk tambah titik baru</div>
+                    </div>
+                `;
+            }, { sticky: true, className: 'glass-tooltip bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-xl rounded-xl px-3 py-2' });
             
             // Hover events for highlight
             layer.on({
@@ -389,18 +433,25 @@ const getDistrictCount = (districtName) => {
     return props.locations.filter(l => l.district && l.district.toLowerCase() === districtName.toLowerCase()).length;
 }
 
+const getColorByCount = (count) => {
+    if (count === 0) return '#334155'; // Slate
+    if (count === 1) return '#2dd4bf'; // Light Teal (teal-400)
+    if (count === 2) return '#0d9488'; // Medium Teal (teal-600)
+    return '#0f766e'; // Dark Teal (teal-700)
+}
+
 const styleChoropleth = (feature) => {
     const districtName = feature.properties.district || feature.properties.kecamatan || feature.properties.name;
     const count = getDistrictCount(districtName);
-    const color = count > 0 ? '#14b8a6' : '#334155'; // teal vs slate
-    const fillOpacity = count > 0 ? 0.2 + (count * 0.1) : 0.1;
+    const fillColor = getColorByCount(count);
+    const fillOpacity = count > 0 ? 0.35 + (count * 0.05) : 0.15;
     return {
-        fillColor: color,
-        weight: 2,
+        fillColor: fillColor,
+        weight: 1.5,
         opacity: 1,
         color: '#475569',
         dashArray: '3',
-        fillOpacity: Math.min(fillOpacity, 0.8)
+        fillOpacity: Math.min(fillOpacity, 0.85)
     };
 }
 
