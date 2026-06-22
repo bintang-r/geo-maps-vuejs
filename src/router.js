@@ -3,6 +3,7 @@ import DashboardView from './views/DashboardView.vue'
 import LocationFormView from './views/LocationFormView.vue'
 import CategoryManagerView from './views/CategoryManagerView.vue'
 import AdminDashboardView from './views/AdminDashboardView.vue'
+import BasicMapView from './views/BasicMapView.vue'
 
 const routes = [
   { path: '/', name: 'Dashboard', component: DashboardView },
@@ -21,6 +22,11 @@ const routes = [
     path: '/admin',
     name: 'AdminDashboard',
     component: AdminDashboardView
+  },
+  {
+    path: '/basic',
+    name: 'BasicMap',
+    component: BasicMapView
   }
 ]
 
