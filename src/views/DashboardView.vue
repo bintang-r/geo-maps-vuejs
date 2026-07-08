@@ -58,12 +58,18 @@
              :class="selectedLocation?.id === loc.id ? 'ring-2 ring-teal-500 shadow-lg' : 'shadow-sm'">
           
           <div class="flex flex-col gap-2 mb-3 min-w-0">
-            <div class="flex items-start">
+            <div class="flex items-center justify-between">
                 <!-- Category Tag (Pill) -->
                 <span class="px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider whitespace-normal leading-tight" 
                       :style="{ backgroundColor: getCategoryDetails(loc.category).color + '20', color: getCategoryDetails(loc.category).color }">
                   {{ loc.category }}
                 </span>
+                
+                <!-- Rating -->
+                <div class="flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20" v-if="loc.rating > 0">
+                   <i class="fa-solid fa-star text-amber-500 text-[8px]"></i>
+                   <span class="text-[10px] font-bold text-amber-500">{{ Number(loc.rating).toFixed(1) }}</span>
+                </div>
             </div>
             <h3 class="font-bold text-base leading-snug text-white group-hover:text-teal-400 transition-colors break-words">{{ loc.name }}</h3>
           </div>
@@ -206,11 +212,19 @@
                 <div class="flex justify-between items-start mb-2 gap-2">
                   <h2 class="text-xl font-bold tracking-tight leading-tight">{{ selectedLocation.name }}</h2>
                 </div>
-                <div class="mb-3">
+                <div class="mb-3 flex items-center gap-3">
                   <span class="px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider inline-block" 
                         :style="{ backgroundColor: getCategoryDetails(selectedLocation.category).color + '20', color: getCategoryDetails(selectedLocation.category).color }">
                     {{ selectedLocation.category }}
                   </span>
+                  
+                  <div class="flex items-center gap-1 bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20" v-if="selectedLocation.rating">
+                     <i class="fa-solid fa-star text-amber-500 text-[10px]"></i>
+                     <span class="text-xs font-bold text-amber-600 dark:text-amber-400">{{ Number(selectedLocation.rating).toFixed(1) }}</span>
+                  </div>
+                  <div class="flex items-center gap-1 bg-slate-500/10 px-2 py-1 rounded-lg border border-slate-500/20" v-else>
+                     <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Belum ada rating</span>
+                  </div>
                 </div>
                 <p class="text-xs text-gray-500 mb-4 line-clamp-3">{{ selectedLocation.description || 'Tidak ada deskripsi.' }}</p>
                 
@@ -263,8 +277,46 @@
                     </div>
                 </transition>
               </div>
+              
+              <!-- Ulasan & Komentar -->
+              <div class="mt-4 pt-4 border-t border-slate-200/50 dark:border-white/10">
+                 <h3 class="text-sm font-bold mb-3 flex items-center gap-2">
+                     <i class="fa-solid fa-comments text-teal-500"></i> Ulasan Pengunjung
+                 </h3>
+                 
+                 <!-- Komentar Form -->
+                 <div class="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 mb-4">
+                     <div class="flex items-center gap-1 mb-2">
+                         <span class="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Beri Nilai:</span>
+                         <button v-for="star in 5" :key="star" @click="newComment.rating = star" class="text-lg focus:outline-none hover:scale-110 transition-transform">
+                             <i class="fa-solid fa-star" :class="star <= newComment.rating ? 'text-amber-500' : 'text-gray-300 dark:text-gray-600'"></i>
+                         </button>
+                     </div>
+                     <input v-model="newComment.user_name" type="text" placeholder="Nama Anda" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs mb-2 focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                     <textarea v-model="newComment.text" placeholder="Tulis pengalaman Anda..." rows="2" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs mb-2 custom-scrollbar focus:ring-1 focus:ring-teal-500 focus:outline-none"></textarea>
+                     <button @click="submitComment" :disabled="isSubmittingComment || !newComment.user_name || !newComment.text" class="w-full py-2 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors">
+                         {{ isSubmittingComment ? 'Mengirim...' : 'Kirim Ulasan' }}
+                     </button>
+                 </div>
 
-              <div class="flex items-center gap-2 mt-auto pt-4 border-t border-slate-200/50 dark:border-white/10 shrink-0 pb-1">
+                 <!-- List Komentar -->
+                 <div class="space-y-3">
+                     <div v-for="comment in locationComments" :key="comment.id" class="bg-white/50 dark:bg-slate-800/30 p-3 rounded-2xl border border-slate-100 dark:border-white/5">
+                         <div class="flex justify-between items-start mb-1">
+                             <div class="font-bold text-xs text-slate-700 dark:text-slate-200">{{ comment.user_name }}</div>
+                             <div class="flex gap-0.5">
+                                 <i v-for="s in 5" :key="s" class="fa-solid fa-star text-[8px]" :class="s <= comment.rating ? 'text-amber-500' : 'text-gray-300 dark:text-gray-600'"></i>
+                             </div>
+                         </div>
+                         <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{{ comment.text }}</p>
+                     </div>
+                     <div v-if="locationComments.length === 0" class="text-center text-xs text-gray-500 py-2">
+                         Jadilah yang pertama memberikan ulasan!
+                     </div>
+                 </div>
+              </div>
+
+              <div class="flex items-center gap-2 mt-4 pt-4 border-t border-slate-200/50 dark:border-white/10 shrink-0 pb-1">
                  <button @click="router.push(`/location/edit/${selectedLocation.id}`)" class="flex-1 py-2 text-xs font-bold uppercase tracking-wider bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl hover:bg-slate-800 dark:hover:bg-gray-100 transition-all shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap">
                    <i class="fa-solid fa-pen-to-square text-xs"></i> Edit
                  </button>
@@ -505,6 +557,10 @@ const searchQuery = ref('')
 const isDark = ref(false)
 const currentImageIndex = ref(0)
 
+const locationComments = ref([])
+const newComment = ref({ user_name: '', text: '', rating: 5 })
+const isSubmittingComment = ref(false)
+
 const provincesList = ref([])
 const regenciesList = ref([])
 const selectedProvince = ref(null)
@@ -730,6 +786,37 @@ const nearbyLocations = computed(() => {
 // Keep nearbyCampuses as alias so MapViewer prop still works
 const nearbyCampuses = nearbyLocations;
 
+const fetchComments = async (id) => {
+    try {
+        const res = await fetch(`${baseUrl}/locations/${id}/comments`);
+        if (res.ok) {
+            locationComments.value = await res.json();
+        }
+    } catch(e) {
+        console.error("Failed to fetch comments", e);
+    }
+}
+
+const submitComment = async () => {
+    if (!newComment.value.user_name || !newComment.value.text || !selectedLocation.value) return;
+    isSubmittingComment.value = true;
+    try {
+        const res = await fetch(`${baseUrl}/locations/${selectedLocation.value.id}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newComment.value)
+        });
+        if (res.ok) {
+            const added = await res.json();
+            locationComments.value.unshift(added);
+            newComment.value = { user_name: '', text: '', rating: 5 };
+            // Update location list to get new average rating
+            fetchData();
+        }
+    } catch(e) { console.error(e); }
+    isSubmittingComment.value = false;
+}
+
 const onLocationSelected = (loc) => {
     selectedLocation.value = loc;
     focusedLocation.value = loc;
@@ -737,6 +824,7 @@ const onLocationSelected = (loc) => {
     selectedDistrict.value = null; // hide district card if open
     routeInfo.value = null; // Clear previous route info
     isBufferModeActive.value = false; // Reset buffer mode
+    fetchComments(loc.id);
 };
 
 const handleRouteInfo = (info) => {

@@ -19,12 +19,16 @@
 <script setup>
 import { onMounted, onUnmounted, watch, ref } from 'vue'
 import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
+import 'leaflet.markercluster'
 
 const props = defineProps(['locations', 'focusedLocation', 'categories', 'geoJsonData', 'showRegionButton', 'showBuffer', 'bufferCenter', 'bufferRadius', 'nearbyCampuses'])
 const emit = defineEmits(['map-click', 'edit-location', 'delete-location', 'district-selected', 'location-selected', 'route-info', 'open-region-modal'])
 
 let map = null;
-let markersLayer = null;
+let markersLayer = L.markerClusterGroup();
 let choroplethLayer = null;
 let bufferCircle = null;
 let bufferLinesGroup = null;
@@ -230,7 +234,13 @@ onMounted(() => {
         }
     }, { immediate: true, deep: true });
 
-    markersLayer = L.layerGroup().addTo(map);
+    markersLayer = L.markerClusterGroup({
+        chunkedLoading: true,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        maxClusterRadius: 50
+    }).addTo(map);
 
     map.on('click', (e) => {
         emit('map-click', { lat: e.latlng.lat, lng: e.latlng.lng })
