@@ -133,7 +133,7 @@
         @map-click="handleMapClick"
         @edit-location="editLocation"
         @delete-location="deleteLocation"
-        @district-selected="onDistrictSelected"
+        @area-selected="onDistrictSelected"
         @location-selected="onLocationSelected"
         @route-info="handleRouteInfo"
       />
