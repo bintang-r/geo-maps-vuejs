@@ -123,6 +123,7 @@
         :categories="categories"
         :focusedLocation="focusedLocation"
         :geoJsonData="regencyGeoJson"
+        :geoJsonLevel="currentGeoJsonLevel"
         :showRegionButton="true"
         :showBuffer="isBufferModeActive && !!selectedLocation"
         :bufferCenter="selectedLocation ? { lat: selectedLocation.lat, lng: selectedLocation.lng } : null"
@@ -572,9 +573,12 @@ const provinceSearch = ref('')
 const regencySearch = ref('')
 const showProvincePicker = ref(true) // Show on first load
 
-// Buffer Analysis State
 const isBufferModeActive = ref(false)
 const bufferRadius = ref(2000) // Default 2 km (2000m)
+
+const currentGeoJsonLevel = computed(() => {
+    return selectedRegency.value ? 'regency' : 'province';
+});
 
 const filteredProvincesList = computed(() => {
     if (!provinceSearch.value) return provincesList.value;

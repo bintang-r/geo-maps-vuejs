@@ -24,8 +24,8 @@ import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import 'leaflet.markercluster'
 
-const props = defineProps(['locations', 'focusedLocation', 'categories', 'geoJsonData', 'showRegionButton', 'showBuffer', 'bufferCenter', 'bufferRadius', 'nearbyCampuses'])
-const emit = defineEmits(['map-click', 'edit-location', 'delete-location', 'district-selected', 'location-selected', 'route-info', 'open-region-modal'])
+const props = defineProps(['locations', 'focusedLocation', 'categories', 'geoJsonData', 'geoJsonLevel', 'showRegionButton', 'showBuffer', 'bufferCenter', 'bufferRadius', 'nearbyCampuses'])
+const emit = defineEmits(['map-click', 'edit-location', 'delete-location', 'area-selected', 'location-selected', 'route-info', 'open-region-modal'])
 
 let map = null;
 let markersLayer = L.markerClusterGroup();
@@ -141,9 +141,8 @@ onMounted(() => {
         style: styleChoropleth,
         onEachFeature: (feature, layer) => {
             layer.bindTooltip(() => {
-                const districtName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '-';
-                const villageName = feature.properties.village || '-';
-                const count = getDistrictCount(districtName);
+                const areaName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '-';
+                const count = getAreaCount(areaName);
                 
                 let densityLabel = 'Sangat Rendah (0)';
                 let colorClass = 'text-slate-400 dark:text-slate-500';
@@ -158,15 +157,16 @@ onMounted(() => {
                     colorClass = 'text-rose-500 font-black';
                 }
 
+                const levelText = props.geoJsonLevel === 'province' ? 'Kabupaten/Kota' : 'Kecamatan';
+
                 return `
                     <div class="text-slate-800 dark:text-gray-100 font-sans">
-                        <div class="text-xs font-extrabold text-teal-600 dark:text-teal-400">Kecamatan ${districtName}</div>
-                        <div class="text-[10px] text-slate-500 dark:text-gray-400">Kelurahan ${villageName}</div>
+                        <div class="text-xs font-extrabold text-teal-600 dark:text-teal-400">${levelText} ${areaName}</div>
                         <div class="text-[10px] text-slate-600 dark:text-gray-300 mt-1.5 border-t border-slate-700/10 pt-1 flex flex-col gap-0.5">
                             <div>Jumlah Wisata: <span class="font-bold text-slate-800 dark:text-white">${count} Lokasi</span></div>
                             <div>Kepadatan: <span class="font-extrabold ${colorClass}">${densityLabel}</span></div>
                         </div>
-                        <div class="text-[9px] text-teal-500/80 mt-1 italic">Klik untuk tambah titik baru</div>
+                        <div class="text-[9px] text-teal-500/80 mt-1 italic">Klik untuk memfilter atau detail</div>
                     </div>
                 `;
             }, { sticky: true, className: 'glass-tooltip bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-xl rounded-xl px-3 py-2' });
@@ -213,9 +213,9 @@ onMounted(() => {
                 },
                 click: (e) => {
                     L.DomEvent.stopPropagation(e);
-                    const districtName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '';
+                    const areaName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '';
                     const center = layer.getBounds().getCenter();
-                    emit('district-selected', { name: districtName, lat: center.lat, lng: center.lng });
+                    emit('area-selected', { name: areaName, lat: center.lat, lng: center.lng, level: props.geoJsonLevel });
                 }
             });
         }
@@ -438,9 +438,15 @@ const getUserLocation = () => {
     );
 }
 
-const getDistrictCount = (districtName) => {
-    if(!props.locations || !districtName) return 0;
-    return props.locations.filter(l => l.district && l.district.toLowerCase() === districtName.toLowerCase()).length;
+const getAreaCount = (areaName) => {
+    if(!props.locations || !areaName) return 0;
+    return props.locations.filter(l => {
+        if (props.geoJsonLevel === 'province') {
+            return l.city && l.city.toLowerCase() === areaName.toLowerCase();
+        } else {
+            return l.district && l.district.toLowerCase() === areaName.toLowerCase();
+        }
+    }).length;
 }
 
 const getColorByCount = (count) => {
@@ -451,8 +457,8 @@ const getColorByCount = (count) => {
 }
 
 const styleChoropleth = (feature) => {
-    const districtName = feature.properties.district || feature.properties.kecamatan || feature.properties.name;
-    const count = getDistrictCount(districtName);
+    const areaName = feature.properties.district || feature.properties.kecamatan || feature.properties.name;
+    const count = getAreaCount(areaName);
     const fillColor = getColorByCount(count);
     const fillOpacity = count > 0 ? 0.35 + (count * 0.05) : 0.15;
     return {
