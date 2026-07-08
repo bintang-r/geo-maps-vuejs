@@ -44,9 +44,25 @@
         </div>
 
         <!-- Search -->
-        <div class="relative mb-6">
+        <div class="relative mb-4">
           <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
           <input v-model="searchQuery" type="text" placeholder="Cari lokasi..." class="w-full bg-slate-800/80 border border-white/10 rounded-2xl pl-10 pr-4 py-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all shadow-inner">
+        </div>
+        
+        <!-- Category Filter -->
+        <div class="flex gap-2 overflow-x-auto custom-scrollbar pb-2 pt-1 px-1 -mx-1">
+          <button @click="selectedCategoryFilter = ''" 
+                  class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border"
+                  :class="selectedCategoryFilter === '' ? 'bg-teal-500 text-white border-teal-500 shadow-md shadow-teal-500/20' : 'bg-slate-800/50 text-gray-400 border-white/5 hover:bg-slate-700/50 hover:text-white'">
+            Semua
+          </button>
+          <button v-for="cat in categories" :key="cat.id" 
+                  @click="selectedCategoryFilter = cat.name"
+                  class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border"
+                  :class="selectedCategoryFilter === cat.name ? 'bg-teal-500 text-white border-teal-500 shadow-md shadow-teal-500/20' : 'bg-slate-800/50 text-gray-400 border-white/5 hover:bg-slate-700/50 hover:text-white'">
+            <i :class="cat.icon_name" :style="{ color: selectedCategoryFilter === cat.name ? 'white' : cat.color }"></i>
+            {{ cat.name }}
+          </button>
         </div>
       </div>
 
@@ -555,6 +571,7 @@ const selectedDistrict = ref(null)
 const districtStats = ref(null)
 const routeInfo = ref(null)
 const searchQuery = ref('')
+const selectedCategoryFilter = ref('')
 const isDark = ref(false)
 const currentImageIndex = ref(0)
 
@@ -741,6 +758,10 @@ const filteredLocations = computed(() => {
     
     if (selectedRegency.value) {
         result = result.filter(loc => loc.city === selectedRegency.value.name);
+    }
+    
+    if (selectedCategoryFilter.value) {
+        result = result.filter(loc => loc.category === selectedCategoryFilter.value);
     }
 
     if (!searchQuery.value) return result;
