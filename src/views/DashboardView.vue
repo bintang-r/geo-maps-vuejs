@@ -568,10 +568,11 @@ const selectedProvince = ref(null)
 const selectedRegency = ref(null)
 const regencyGeoJson = ref(null)
 
+const isInitialLoading = ref(true)
 const isRegionModalOpen = ref(false)
 const provinceSearch = ref('')
 const regencySearch = ref('')
-const showProvincePicker = ref(true) // Show on first load
+const showProvincePicker = ref(false) // Akan di set setelah loading selesai
 
 const isBufferModeActive = ref(false)
 const bufferRadius = ref(2000) // Default 2 km (2000m)
@@ -981,14 +982,17 @@ onMounted(() => {
                             onRegencyChange();
                         }
                     }
+                    isInitialLoading.value = false;
                 });
             } else {
                 // Provinsi tersimpan tidak ditemukan, tampilkan picker
                 showProvincePicker.value = true;
+                isInitialLoading.value = false;
             }
         } else {
             // Belum pernah pilih provinsi, tampilkan picker
             showProvincePicker.value = true;
+            isInitialLoading.value = false;
         }
     })
 })

@@ -82,8 +82,8 @@ onMounted(() => {
     });
 
     map = L.map('map', {
-        center: [-5.1476, 119.4327],
-        zoom: 12,
+        center: [-2.5489, 118.0148], // Indonesia center
+        zoom: 5,
         minZoom: 5,
         maxBounds: [
             [-11.0, 95.0],
