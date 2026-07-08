@@ -453,9 +453,9 @@ const getAreaCount = (areaName) => {
     if(!props.locations || !areaName) return 0;
     return props.locations.filter(l => {
         if (props.geoJsonLevel === 'province') {
-            return l.city && l.city.toLowerCase() === areaName.toLowerCase();
+            return l.city && (l.city.toLowerCase().includes(areaName.toLowerCase()) || areaName.toLowerCase().includes(l.city.toLowerCase().replace(/kabupaten|kota/gi, '').trim()));
         } else {
-            return l.district && l.district.toLowerCase() === areaName.toLowerCase();
+            return l.district && (l.district.toLowerCase().includes(areaName.toLowerCase()) || areaName.toLowerCase().includes(l.district.toLowerCase().replace(/kecamatan/gi, '').trim()));
         }
     }).length;
 }

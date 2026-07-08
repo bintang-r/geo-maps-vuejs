@@ -848,9 +848,9 @@ const onDistrictSelected = (area) => {
     // Calculate stats
     const locsInArea = locations.value.filter(loc => {
         if (level === 'province') {
-            return loc.city && loc.city.toLowerCase() === areaName.toLowerCase();
+            return loc.city && (loc.city.toLowerCase().includes(areaName.toLowerCase()) || areaName.toLowerCase().includes(loc.city.toLowerCase().replace(/kabupaten|kota/gi, '').trim()));
         } else {
-            return loc.district && loc.district.toLowerCase() === areaName.toLowerCase();
+            return loc.district && (loc.district.toLowerCase().includes(areaName.toLowerCase()) || areaName.toLowerCase().includes(loc.district.toLowerCase().replace(/kecamatan/gi, '').trim()));
         }
     });
     
