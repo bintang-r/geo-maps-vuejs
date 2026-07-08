@@ -1,6 +1,6 @@
 <template>
   <!-- Floating Chatbot Widget -->
-  <div class="fixed bottom-6 left-[360px] md:left-[420px] z-[9999] font-['Inter',sans-serif] select-none">
+  <div class="fixed bottom-6 left-[440px] md:left-[500px] z-[9999] font-['Inter',sans-serif] select-none">
     
     <!-- Toggle Button with pulse animation when closed -->
     <button 
