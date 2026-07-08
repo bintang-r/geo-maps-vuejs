@@ -99,7 +99,7 @@
       <div @click="isRegionModalOpen = true" class="absolute top-4 left-4 z-[400] bg-white/90 dark:bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-md border border-gray-200 dark:border-slate-700 cursor-pointer flex items-center gap-2 transition-all hover:bg-gray-50 dark:hover:bg-slate-700 hover:scale-105 group max-w-[240px]">
          <i class="fa-solid fa-map-location-dot text-teal-500 group-hover:scale-110 transition-transform shrink-0"></i>
          <span class="text-sm font-bold text-slate-700 dark:text-gray-200 truncate">
-             {{ selectedProvince ? selectedProvince.name : 'Seluruh Indonesia' }}{{ selectedRegency ? ' - ' + selectedRegency.name : '' }}
+             {{ selectedProvince ? selectedProvince.name : 'Pilih Provinsi' }}{{ selectedRegency ? ' › ' + selectedRegency.name : '' }}
          </span>
          <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 ml-1 shrink-0"></i>
       </div>
@@ -424,7 +424,41 @@
       </div>
     </transition>
 
-  </div>
+      <!-- Province Picker Splash Screen -->
+      <transition enter-active-class="transition duration-300 ease-out" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition duration-300 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
+        <div v-if="showProvincePicker" class="absolute inset-0 z-[600] flex items-center justify-center bg-gradient-to-br from-slate-900/95 to-teal-900/80 backdrop-blur-xl">
+          <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-gray-200 dark:border-slate-700">
+            <div class="p-8 text-center bg-gradient-to-br from-emerald-500 to-teal-600">
+              <div class="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <i class="fa-solid fa-map-location-dot text-4xl text-white"></i>
+              </div>
+              <h2 class="text-2xl font-black text-white mb-1">Smart Wisata Sumut</h2>
+              <p class="text-teal-100 text-sm">Pilih provinsi untuk mulai menjelajah destinasi wisata</p>
+            </div>
+            <div class="p-6">
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Pilih Provinsi</label>
+              <div class="relative mb-3">
+                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input type="text" v-model="provinceSearch" placeholder="Cari provinsi..." class="w-full bg-slate-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-800 dark:text-white" />
+              </div>
+              <div class="max-h-56 overflow-y-auto rounded-xl border border-gray-100 dark:border-slate-700 custom-scrollbar">
+                <div v-if="filteredProvincesList.length === 0" class="text-center py-6 text-sm text-gray-400">Provinsi tidak ditemukan</div>
+                <div v-for="prov in filteredProvincesList" :key="prov.id"
+                     @click="selectProvinceFromPicker(prov)"
+                     class="px-4 py-3 text-sm cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-slate-700/50 last:border-0">
+                  <div class="w-8 h-8 rounded-xl bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-map text-teal-600 dark:text-teal-400 text-xs"></i>
+                  </div>
+                  <span class="font-medium text-slate-700 dark:text-gray-200">{{ prov.name }}</span>
+                  <i class="fa-solid fa-chevron-right text-gray-300 ml-auto text-xs"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+    </div>
 </template>
 
 <script setup>
@@ -453,13 +487,14 @@ const currentImageIndex = ref(0)
 
 const provincesList = ref([])
 const regenciesList = ref([])
-const selectedProvince = ref('')
-const selectedRegency = ref('')
+const selectedProvince = ref(null)
+const selectedRegency = ref(null)
 const regencyGeoJson = ref(null)
 
 const isRegionModalOpen = ref(false)
 const provinceSearch = ref('')
 const regencySearch = ref('')
+const showProvincePicker = ref(true) // Show on first load
 
 // Buffer Analysis State
 const isBufferModeActive = ref(false)
@@ -480,6 +515,14 @@ const filteredRegenciesList = computed(() => {
 const selectProvince = (prov) => {
     selectedProvince.value = prov;
     onProvinceChange();
+}
+
+// Called from the splash screen picker
+const selectProvinceFromPicker = async (prov) => {
+    selectedProvince.value = prov;
+    showProvincePicker.value = false;
+    localStorage.setItem('savedProvince', prov.name);
+    await onProvinceChange();
 }
 
 const selectRegency = (reg) => {
@@ -522,49 +565,45 @@ const fetchData = async () => {
     }
 }
 
-const loadAllRegenciesGeoJson = async (province) => {
+// Lightweight: hanya muat batas Kab/Kota (tidak load kecamatan)
+// Cukup request 1 endpoint province boundary atau gabung batas kab
+const loadRegencyBoundariesOnly = async (province) => {
     if (!province) return null;
     try {
-        const res = await fetch(`${baseUrl}/regencies?province_id=${province.id}`);
-        if (!res.ok) return null;
-        const regencies = await res.json();
-        
-        if (regencies.length > 0) {
-            const geojsonPromises = regencies.map(async (reg) => {
-                try {
-                    const resGeo = await fetch(`${baseUrl}/regencies/${reg.id}/geojson`);
-                    if (resGeo.ok) return await resGeo.json();
-                } catch (e) {
-                    console.error(`Failed to fetch geojson for regency ${reg.name}`, e);
-                }
-                return null;
-            });
-            
-            const geojsonResults = await Promise.all(geojsonPromises);
-            const allFeatures = [];
-            geojsonResults.forEach(geo => {
-                if (geo && geo.features) {
-                    allFeatures.push(...geo.features);
-                }
-            });
-            
-            if (allFeatures.length > 0) {
-                return {
-                    type: 'FeatureCollection',
-                    features: allFeatures
-                };
-            }
+        // Try dedicated province-level boundary (semua kab outline dalam 1 file)
+        const res = await fetch(`${baseUrl}/provinces/${province.id}/geojson`);
+        if (res.ok) {
+            const geo = await res.json();
+            if (geo && geo.features && geo.features.length > 0) return geo;
         }
-    } catch (e) {
-        console.error("Failed to load combined regencies GeoJSON", e);
-    }
-    
-    // Fallback to simplified province boundary if combine fails
+    } catch (e) { /* ignore */ }
+
     try {
-        const resGeo = await fetch(`${baseUrl}/provinces/${province.id}/geojson`);
-        if (resGeo.ok) return await resGeo.json();
+        // Fallback: gabung dari individual regencies tapi hanya ambil outline (simplified)
+        const regRes = await fetch(`${baseUrl}/regencies?province_id=${province.id}`);
+        if (!regRes.ok) return null;
+        const regencies = await regRes.json();
+        if (regencies.length === 0) return null;
+
+        // Load max 5 sekaligus untuk tidak terlalu berat
+        const allFeatures = [];
+        const BATCH = 5;
+        for (let i = 0; i < regencies.length; i += BATCH) {
+            const batch = regencies.slice(i, i + BATCH);
+            const results = await Promise.all(batch.map(async (reg) => {
+                try {
+                    const r = await fetch(`${baseUrl}/regencies/${reg.id}/geojson`);
+                    if (r.ok) return await r.json();
+                } catch(e) {}
+                return null;
+            }));
+            results.forEach(geo => {
+                if (geo && geo.features) allFeatures.push(...geo.features);
+            });
+        }
+        if (allFeatures.length > 0) return { type: 'FeatureCollection', features: allFeatures };
     } catch (e) {
-        console.error("Failed to fetch fallback province GeoJSON", e);
+        console.error('Failed to load regency boundaries', e);
     }
     return null;
 }
@@ -573,51 +612,43 @@ const onProvinceChange = async (isUserAction = true) => {
     selectedRegency.value = null;
     regencyGeoJson.value = null;
     regenciesList.value = [];
+    selectedDistrict.value = null;
     
     if (!selectedProvince.value) return;
     
     // Save to localStorage
     localStorage.setItem('savedProvince', selectedProvince.value.name);
-    // Only clear savedRegency when user actively changes province (not on initial load)
-    if (isUserAction) {
-        localStorage.removeItem('savedRegency');
-    }
+    if (isUserAction) localStorage.removeItem('savedRegency');
     
     try {
         const res = await fetch(`${baseUrl}/regencies?province_id=${selectedProvince.value.id}`);
-        if (res.ok) {
-            regenciesList.value = await res.json();
-        }
-    } catch(e) {
-        console.error("Failed to fetch regencies", e);
-    }
+        if (res.ok) regenciesList.value = await res.json();
+    } catch(e) { console.error('Failed to fetch regencies', e); }
 
-    regencyGeoJson.value = await loadAllRegenciesGeoJson(selectedProvince.value);
+    // Province level: hanya muat batas Kab/Kota (ringan)
+    regencyGeoJson.value = await loadRegencyBoundariesOnly(selectedProvince.value);
 }
 
 const onRegencyChange = async () => {
+    selectedDistrict.value = null;
     if (!selectedRegency.value) {
         localStorage.removeItem('savedRegency');
+        // Kembali ke batas Kab/Kota saja
         if (selectedProvince.value) {
-            regencyGeoJson.value = await loadAllRegenciesGeoJson(selectedProvince.value);
+            regencyGeoJson.value = await loadRegencyBoundariesOnly(selectedProvince.value);
         } else {
             regencyGeoJson.value = null;
         }
         return;
     }
     
-    // Save to localStorage
     localStorage.setItem('savedRegency', selectedRegency.value.name);
-    
     regencyGeoJson.value = null;
     try {
+        // Kab/Kota dipilih → baru load detail GeoJSON kecamatan
         const res = await fetch(`${baseUrl}/regencies/${selectedRegency.value.id}/geojson`);
-        if (res.ok) {
-            regencyGeoJson.value = await res.json();
-        }
-    } catch (e) {
-        console.error("Failed to fetch geojson", e);
-    }
+        if (res.ok) regencyGeoJson.value = await res.json();
+    } catch (e) { console.error('Failed to fetch regency detail geojson', e); }
 }
 
 const filteredLocations = computed(() => {
@@ -815,23 +846,31 @@ onMounted(() => {
         document.documentElement.classList.add('dark');
     }
     fetchData().then(() => {
-        if (provincesList.value.length > 0) {
-            const savedProvName = localStorage.getItem('savedProvince') || 'Sumatera Utara';
-            const defaultProv = provincesList.value.find(p => p.name.toLowerCase() === savedProvName.toLowerCase());
-            
-            if (defaultProv) {
-                // Read savedRegency BEFORE calling onProvinceChange (which may clear it)
-                const savedRegName = localStorage.getItem('savedRegency') || 'Kota Medan';
-
-                selectedProvince.value = defaultProv;
+        // Cek apakah ada provinsi tersimpan dari sesi sebelumnya
+        const savedProvName = localStorage.getItem('savedProvince');
+        if (savedProvName && provincesList.value.length > 0) {
+            const savedProv = provincesList.value.find(p => p.name.toLowerCase() === savedProvName.toLowerCase());
+            if (savedProv) {
+                // Pulihkan sesi sebelumnya — tidak tampilkan picker
+                showProvincePicker.value = false;
+                selectedProvince.value = savedProv;
                 onProvinceChange(false).then(() => {
-                    const defaultReg = regenciesList.value.find(r => r.name.toLowerCase() === savedRegName.toLowerCase());
-                    if (defaultReg) {
-                        selectedRegency.value = defaultReg;
-                        onRegencyChange();
+                    const savedRegName = localStorage.getItem('savedRegency');
+                    if (savedRegName) {
+                        const savedReg = regenciesList.value.find(r => r.name.toLowerCase() === savedRegName.toLowerCase());
+                        if (savedReg) {
+                            selectedRegency.value = savedReg;
+                            onRegencyChange();
+                        }
                     }
                 });
+            } else {
+                // Provinsi tersimpan tidak ditemukan, tampilkan picker
+                showProvincePicker.value = true;
             }
+        } else {
+            // Belum pernah pilih provinsi, tampilkan picker
+            showProvincePicker.value = true;
         }
     })
 })
