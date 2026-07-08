@@ -143,7 +143,7 @@
         <div v-if="selectedDistrict && districtStats" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-11/12 max-w-2xl bg-slate-900/90 backdrop-blur-2xl rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-30 flex flex-col overflow-hidden border border-white/20 p-6">
             <div class="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
                <div>
-                  <h2 class="text-2xl font-black text-white tracking-tight mb-1">Kec. {{ districtStats.name }}</h2>
+              <h2 class="text-2xl font-black text-white tracking-tight mb-1">{{ districtStats.label }} {{ districtStats.name }}</h2>
                   <p class="text-sm font-medium text-teal-400 uppercase tracking-widest">Statistik Lokasi</p>
                </div>
                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500/20 to-blue-500/20 flex items-center justify-center border border-white/10 shadow-inner">
@@ -156,7 +156,7 @@
             </div>
             <div v-else class="text-center py-8 text-gray-400 font-medium border-2 border-dashed border-white/10 rounded-2xl bg-white/5">
                <i class="fa-solid fa-map-location-dot text-3xl mb-3 opacity-50 block"></i>
-               Belum ada data lokasi yang terdaftar di kecamatan ini.
+               Belum ada data lokasi yang terdaftar di wilayah ini.
             </div>
 
             <div class="flex gap-3 mt-6 pt-5 border-t border-white/10">
@@ -835,32 +835,38 @@ const handleRouteInfo = (info) => {
     routeInfo.value = info;
 };
 
-const onDistrictSelected = (district) => {
-    // Support both old string format and new {name, lat, lng} object format
-    const districtName = typeof district === 'string' ? district : district.name;
-    const districtLat = typeof district === 'object' ? district.lat : null;
-    const districtLng = typeof district === 'object' ? district.lng : null;
+const onDistrictSelected = (area) => {
+    // Support both old string format and new {name, lat, lng, level} object format
+    const areaName = typeof area === 'string' ? area : area.name;
+    const areaLat = typeof area === 'object' ? area.lat : null;
+    const areaLng = typeof area === 'object' ? area.lng : null;
+    const level = typeof area === 'object' ? area.level : 'regency';
 
     selectedLocation.value = null; // hide location card
-    selectedDistrict.value = districtName;
+    selectedDistrict.value = areaName;
     
     // Calculate stats
-    const locsInDistrict = locations.value.filter(loc => 
-       loc.district && loc.district.toLowerCase() === districtName.toLowerCase()
-    );
+    const locsInArea = locations.value.filter(loc => {
+        if (level === 'province') {
+            return loc.city && loc.city.toLowerCase() === areaName.toLowerCase();
+        } else {
+            return loc.district && loc.district.toLowerCase() === areaName.toLowerCase();
+        }
+    });
     
-    const total = locsInDistrict.length;
+    const total = locsInArea.length;
     
     // Group by category
     const categoryCounts = {};
-    locsInDistrict.forEach(loc => {
+    locsInArea.forEach(loc => {
         categoryCounts[loc.category] = (categoryCounts[loc.category] || 0) + 1;
     });
     
     districtStats.value = {
-        name: districtName,
-        lat: districtLat,
-        lng: districtLng,
+        name: areaName,
+        label: level === 'province' ? 'Kabupaten/Kota' : 'Kecamatan',
+        lat: areaLat,
+        lng: areaLng,
         total: total,
         categories: Object.keys(categoryCounts).map(cat => ({
             name: cat,
