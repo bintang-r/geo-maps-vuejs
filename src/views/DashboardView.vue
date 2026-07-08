@@ -155,12 +155,16 @@
         </div>
       </transition>
 
-      <!-- Floating Bottom Card (Details) -->
-      <transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform translate-y-20 opacity-0" enter-to-class="transform translate-y-0 opacity-100" leave-active-class="transition duration-200 ease-in" leave-from-class="transform translate-y-0 opacity-100" leave-to-class="transform translate-y-20 opacity-0">
-        <div v-if="selectedLocation && !selectedDistrict" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-11/12 max-w-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl rounded-[2rem] shadow-2xl z-20 flex overflow-hidden border border-white/50 dark:border-white/10">
+      <!-- Floating Right Panel (Details) -->
+      <transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform translate-x-full opacity-0" enter-to-class="transform translate-x-0 opacity-100" leave-active-class="transition duration-200 ease-in" leave-from-class="transform translate-x-0 opacity-100" leave-to-class="transform translate-x-full opacity-0">
+        <div v-if="selectedLocation && !selectedDistrict" class="absolute top-4 right-4 bottom-24 md:bottom-4 w-[360px] max-w-[90vw] bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl rounded-[2rem] shadow-2xl z-20 flex flex-col overflow-hidden border border-white/50 dark:border-white/10">
           
           <!-- Image Section (Carousel) -->
-          <div class="w-1/3 bg-white/40 dark:bg-slate-800/40 relative overflow-hidden group">
+          <div class="h-48 shrink-0 bg-white/40 dark:bg-slate-800/40 relative overflow-hidden group">
+             <!-- Close Button -->
+             <button @click="selectedLocation = null" class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-md hover:bg-black/60 transition-colors">
+                 <i class="fa-solid fa-xmark"></i>
+             </button>
              <template v-if="selectedLocationImages.length > 0">
                  <img :src="selectedLocationImages[currentImageIndex]" class="w-full h-full object-cover transition-opacity duration-300" :key="currentImageIndex" />
                  
@@ -188,30 +192,41 @@
           </div>
 
           <!-- Content Section -->
-          <div class="w-2/3 p-6 flex flex-col justify-between">
-            <div v-if="!isBufferModeActive" class="flex-1 flex flex-col justify-between">
+          <div class="flex-1 p-5 flex flex-col overflow-y-auto custom-scrollbar">
+            <div v-if="!isBufferModeActive" class="flex flex-col gap-4">
               <div>
-                <div class="flex justify-between items-start mb-2">
-                  <h2 class="text-2xl font-bold tracking-tight">{{ selectedLocation.name }}</h2>
-                  <span class="px-3 py-1 rounded-xl text-xs font-bold uppercase tracking-wider" 
+                <div class="flex justify-between items-start mb-2 gap-2">
+                  <h2 class="text-xl font-bold tracking-tight leading-tight">{{ selectedLocation.name }}</h2>
+                </div>
+                <div class="mb-3">
+                  <span class="px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider inline-block" 
                         :style="{ backgroundColor: getCategoryDetails(selectedLocation.category).color + '20', color: getCategoryDetails(selectedLocation.category).color }">
                     {{ selectedLocation.category }}
                   </span>
                 </div>
-                <p class="text-sm text-gray-500 mb-4 line-clamp-2">{{ selectedLocation.description || 'Tidak ada deskripsi.' }}</p>
+                <p class="text-xs text-gray-500 mb-4 line-clamp-3">{{ selectedLocation.description || 'Tidak ada deskripsi.' }}</p>
                 
-                <div class="grid grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Alamat</p>
-                    <p class="text-sm font-medium text-slate-700 dark:text-gray-200 truncate" :title="selectedLocation.address">{{ selectedLocation.address || '-' }}</p>
+                <div class="space-y-3 mb-4 bg-slate-50/50 dark:bg-slate-800/30 p-3 rounded-2xl border border-white/40 dark:border-white/5">
+                  <div class="flex items-start gap-2">
+                    <i class="fa-solid fa-map-location-dot text-gray-400 mt-0.5 w-4 text-center text-xs"></i>
+                    <div>
+                      <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-0.5">Alamat</p>
+                      <p class="text-xs font-medium text-slate-700 dark:text-gray-200" :title="selectedLocation.address">{{ selectedLocation.address || '-' }}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Kecamatan</p>
-                    <p class="text-sm font-medium text-slate-700 dark:text-gray-200">{{ selectedLocation.district || '-' }}</p>
+                  <div class="flex items-start gap-2">
+                    <i class="fa-solid fa-building text-gray-400 mt-0.5 w-4 text-center text-xs"></i>
+                    <div>
+                      <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-0.5">Kecamatan</p>
+                      <p class="text-xs font-medium text-slate-700 dark:text-gray-200">{{ selectedLocation.district || '-' }}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Jam Operasional</p>
-                    <p class="text-sm font-medium text-slate-700 dark:text-gray-200">{{ selectedLocation.operating_hours || '-' }}</p>
+                  <div class="flex items-start gap-2">
+                    <i class="fa-solid fa-clock text-gray-400 mt-0.5 w-4 text-center text-xs"></i>
+                    <div>
+                      <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-0.5">Jam Operasional</p>
+                      <p class="text-xs font-medium text-slate-700 dark:text-gray-200">{{ selectedLocation.operating_hours || '-' }}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -241,19 +256,15 @@
                 </transition>
               </div>
 
-              <div class="flex items-center flex-wrap gap-2 mt-4 pt-4 border-t border-slate-200/50 dark:border-white/10">
-                 <button @click="router.push(`/location/edit/${selectedLocation.id}`)" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl hover:bg-slate-800 dark:hover:bg-gray-100 transition-all shadow-md flex items-center gap-1.5 whitespace-nowrap">
+              <div class="flex items-center gap-2 mt-auto pt-4 border-t border-slate-200/50 dark:border-white/10 shrink-0 pb-1">
+                 <button @click="router.push(`/location/edit/${selectedLocation.id}`)" class="flex-1 py-2 text-xs font-bold uppercase tracking-wider bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl hover:bg-slate-800 dark:hover:bg-gray-100 transition-all shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap">
                    <i class="fa-solid fa-pen-to-square text-xs"></i> Edit
                  </button>
-                 <button @click="deleteLocation(selectedLocation.id)" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-md flex items-center gap-1.5 whitespace-nowrap">
+                 <button @click="deleteLocation(selectedLocation.id)" class="flex-1 py-2 text-xs font-bold uppercase tracking-wider bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap border border-red-200 dark:border-red-900/50">
                    <i class="fa-solid fa-trash text-xs"></i> Hapus
                  </button>
-                 <!-- Buffer Analysis Trigger Button -->
-                 <button @click="isBufferModeActive = true" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-sky-500 hover:bg-sky-600 text-white rounded-xl transition-all shadow-md shadow-sky-500/20 flex items-center gap-1.5 whitespace-nowrap animate-pulse hover:animate-none">
-                   <i class="fa-solid fa-circle-dot text-xs"></i> Wisata Terdekat
-                 </button>
-                 <button @click="selectedLocation = null" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-1.5 whitespace-nowrap ml-auto">
-                   Tutup
+                 <button @click="isBufferModeActive = true" class="w-10 h-10 flex items-center justify-center bg-sky-500 text-white rounded-xl shadow-md shadow-sky-500/20 animate-pulse hover:animate-none">
+                   <i class="fa-solid fa-circle-dot text-xs"></i>
                  </button>
               </div>
             </div>
