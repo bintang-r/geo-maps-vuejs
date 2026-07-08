@@ -1,10 +1,13 @@
 <template>
-  <div class="h-screen w-full bg-slate-100 flex overflow-hidden font-sans text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors">
+  <div class="h-screen w-full bg-slate-100 flex overflow-hidden font-['Inter',sans-serif] text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors">
     
+    <!-- Chatbot Widget -->
+    <Chatbot />
+
     <!-- Left Icon Rail -->
     <div class="w-20 bg-slate-950/90 backdrop-blur-xl flex flex-col items-center py-6 shadow-2xl z-20 shrink-0 border-r border-white/10">
-      <div class="mb-8 p-3 bg-teal-500 text-white rounded-2xl shadow-lg">
-        <i class="fa-solid fa-cube text-2xl"></i>
+      <div class="mb-8 p-3 bg-gradient-to-br from-emerald-400 to-teal-600 text-white rounded-2xl shadow-lg">
+        <i class="fa-solid fa-map-location-dot text-2xl"></i>
       </div>
       
       <div class="flex flex-col gap-6 flex-1 w-full items-center">
@@ -37,7 +40,7 @@
     <div class="w-full max-w-[340px] md:max-w-[400px] bg-slate-900/80 backdrop-blur-xl flex flex-col h-full shadow-2xl z-10 shrink-0 border-r border-white/10 transition-transform duration-300" :class="{'translate-x-0': true}">
       <div class="p-6 pb-2">
         <div class="flex justify-between items-center mb-6">
-          <h1 class="text-2xl font-bold tracking-tight text-white">Lokasi</h1>
+          <h1 class="text-2xl font-bold tracking-tight text-white">Smart Wisata</h1>
           <button class="w-8 h-8 rounded-full border border-white/20 flex justify-center items-center text-gray-400 hover:bg-white/10 transition-colors">
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </button>
@@ -430,6 +433,7 @@ import { useRouter } from 'vue-router'
 import { useToast } from '../composables/useToast'
 import MapViewer from '../components/MapViewer.vue'
 import DistrictChart from '../components/DistrictChart.vue'
+import Chatbot from '../components/Chatbot.vue'
 
 const router = useRouter()
 const toast = useToast()
@@ -812,12 +816,12 @@ onMounted(() => {
     }
     fetchData().then(() => {
         if (provincesList.value.length > 0) {
-            const savedProvName = localStorage.getItem('savedProvince') || 'Sulawesi Selatan';
+            const savedProvName = localStorage.getItem('savedProvince') || 'Sumatera Utara';
             const defaultProv = provincesList.value.find(p => p.name.toLowerCase() === savedProvName.toLowerCase());
             
             if (defaultProv) {
                 // Read savedRegency BEFORE calling onProvinceChange (which may clear it)
-                const savedRegName = localStorage.getItem('savedRegency') || 'Kota Makassar';
+                const savedRegName = localStorage.getItem('savedRegency') || 'Kota Medan';
 
                 selectedProvince.value = defaultProv;
                 onProvinceChange(false).then(() => {
