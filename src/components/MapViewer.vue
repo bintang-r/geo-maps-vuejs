@@ -141,7 +141,13 @@ onMounted(() => {
         style: styleChoropleth,
         onEachFeature: (feature, layer) => {
             layer.bindTooltip(() => {
-                const areaName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '-';
+                let areaName = '-';
+                if (props.geoJsonLevel === 'province') {
+                    areaName = feature.properties.regency || feature.properties.kabupaten || feature.properties.district || feature.properties.name || '-';
+                } else {
+                    areaName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '-';
+                }
+                
                 const count = getAreaCount(areaName);
                 
                 let densityLabel = 'Sangat Rendah (0)';
@@ -213,7 +219,12 @@ onMounted(() => {
                 },
                 click: (e) => {
                     L.DomEvent.stopPropagation(e);
-                    const areaName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '';
+                    let areaName = '';
+                    if (props.geoJsonLevel === 'province') {
+                        areaName = feature.properties.regency || feature.properties.kabupaten || feature.properties.district || feature.properties.name || '';
+                    } else {
+                        areaName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '';
+                    }
                     const center = layer.getBounds().getCenter();
                     emit('area-selected', { name: areaName, lat: center.lat, lng: center.lng, level: props.geoJsonLevel });
                 }
@@ -457,13 +468,23 @@ const getColorByCount = (count) => {
 }
 
 const styleChoropleth = (feature) => {
-    const areaName = feature.properties.district || feature.properties.kecamatan || feature.properties.name;
+    let areaName = '';
+    if (props.geoJsonLevel === 'province') {
+        areaName = feature.properties.regency || feature.properties.kabupaten || feature.properties.district || feature.properties.name || '';
+    } else {
+        areaName = feature.properties.district || feature.properties.kecamatan || feature.properties.name || '';
+    }
+    
     const count = getAreaCount(areaName);
     const fillColor = getColorByCount(count);
     const fillOpacity = count > 0 ? 0.35 + (count * 0.05) : 0.15;
+    
+    // Make boundaries lighter/invisible when grouped into regencies if desired, but here we just keep them consistent
+    const weight = props.geoJsonLevel === 'province' ? 0.5 : 1.5;
+    
     return {
         fillColor: fillColor,
-        weight: 1.5,
+        weight: weight,
         opacity: 1,
         color: '#475569',
         dashArray: '3',
