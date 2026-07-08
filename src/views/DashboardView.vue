@@ -364,45 +364,45 @@
       <div v-if="isRegionModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
         <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-slate-700">
           <div class="p-6 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
-            <h2 class="text-xl font-bold text-slate-800 dark:text-white">Pilih Wilayah</h2>
+            <div>
+              <h2 class="text-xl font-bold text-slate-800 dark:text-white">Pilih Wilayah</h2>
+              <p class="text-xs text-gray-400 mt-0.5">
+                Provinsi dipilih → tampil batas Kab/Kota. Kab/Kota dipilih → tampil detail kecamatan.
+              </p>
+            </div>
             <button @click="isRegionModalOpen = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
               <i class="fa-solid fa-xmark text-xl"></i>
             </button>
           </div>
           
-          <div class="p-6 space-y-6">
-            <!-- Province -->
-            <div>
-              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Provinsi</label>
-              <div class="relative">
-                 <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                 <input type="text" v-model="provinceSearch" placeholder="Cari Provinsi..." class="w-full bg-slate-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 mb-2 text-slate-800 dark:text-white">
+          <div class="p-6 space-y-5">
+            <!-- Province (read-only display, ganti via button) -->
+            <div class="flex items-center gap-3 p-3 bg-teal-50 dark:bg-teal-900/20 rounded-xl border border-teal-200 dark:border-teal-800">
+              <div class="w-9 h-9 rounded-xl bg-teal-500 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-map text-white text-sm"></i>
               </div>
-              <div class="max-h-40 overflow-y-auto rounded-xl border border-gray-100 dark:border-slate-700 custom-scrollbar bg-slate-50 dark:bg-slate-900/30">
-                 <div @click="selectProvince(null)" class="px-4 py-2.5 text-sm cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors flex items-center justify-between" :class="!selectedProvince ? 'bg-teal-500 text-white font-bold dark:bg-teal-600' : 'text-slate-700 dark:text-gray-300 italic'">
-                     <span>Semua Provinsi</span>
-                     <i v-if="!selectedProvince" class="fa-solid fa-check"></i>
-                 </div>
-                 <div v-for="prov in filteredProvincesList" :key="prov.id" 
-                      @click="selectProvince(prov)"
-                      class="px-4 py-2.5 text-sm cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors flex items-center justify-between"
-                      :class="selectedProvince?.id === prov.id ? 'bg-teal-500 text-white font-bold dark:bg-teal-600' : 'text-slate-700 dark:text-gray-300'">
-                   <span>{{ prov.name }}</span>
-                   <i v-if="selectedProvince?.id === prov.id" class="fa-solid fa-check"></i>
-                 </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[10px] text-teal-500 font-bold uppercase tracking-wider">Provinsi</p>
+                <p class="text-sm font-bold text-slate-800 dark:text-white truncate">{{ selectedProvince?.name || '-' }}</p>
               </div>
+              <button @click="isRegionModalOpen = false; showProvincePicker = true; selectedProvince = null; selectedRegency = null; regencyGeoJson = null; regenciesList = []" 
+                      class="px-3 py-1.5 text-xs font-semibold text-teal-600 dark:text-teal-400 border border-teal-300 dark:border-teal-700 rounded-lg hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors whitespace-nowrap">
+                Ganti
+              </button>
             </div>
 
             <!-- Regency -->
             <div>
-              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Kabupaten / Kota</label>
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Kabupaten / Kota
+                <span class="text-xs font-normal text-gray-400 ml-1">(opsional — untuk detail kecamatan)</span>
+              </label>
               <div class="relative">
                  <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                  <input type="text" v-model="regencySearch" placeholder="Cari Kabupaten/Kota..." :disabled="!selectedProvince" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 mb-2 disabled:opacity-50 text-slate-800 dark:text-white">
               </div>
-              <div class="max-h-40 overflow-y-auto rounded-xl border border-gray-100 dark:border-slate-700 custom-scrollbar bg-slate-50 dark:bg-slate-900/30" :class="{'opacity-50 pointer-events-none': !selectedProvince}">
+              <div class="max-h-48 overflow-y-auto rounded-xl border border-gray-100 dark:border-slate-700 custom-scrollbar bg-slate-50 dark:bg-slate-900/30" :class="{'opacity-50 pointer-events-none': !selectedProvince}">
                  <div @click="selectRegency(null)" class="px-4 py-2.5 text-sm cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors flex items-center justify-between" :class="!selectedRegency ? 'bg-teal-500 text-white font-bold dark:bg-teal-600' : 'text-slate-700 dark:text-gray-300 italic'">
-                     <span>Semua Kabupaten/Kota</span>
+                     <span>Semua Kab/Kota (batas provinsi)</span>
                      <i v-if="!selectedRegency" class="fa-solid fa-check"></i>
                  </div>
                  <div v-for="reg in filteredRegenciesList" :key="reg.id" 
@@ -415,7 +415,7 @@
               </div>
             </div>
           </div>
-          <div class="p-6 border-t border-gray-100 dark:border-slate-700 flex justify-end">
+          <div class="p-5 border-t border-gray-100 dark:border-slate-700 flex justify-end">
              <button @click="isRegionModalOpen = false" class="px-6 py-2.5 bg-teal-500 text-white font-semibold rounded-xl hover:bg-teal-600 transition-colors shadow-lg">
                Selesai
              </button>
@@ -423,6 +423,7 @@
         </div>
       </div>
     </transition>
+
 
       <!-- Province Picker Splash Screen -->
       <transition enter-active-class="transition duration-300 ease-out" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition duration-300 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
