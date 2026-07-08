@@ -250,7 +250,7 @@
                  </button>
                  <!-- Buffer Analysis Trigger Button -->
                  <button @click="isBufferModeActive = true" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-sky-500 hover:bg-sky-600 text-white rounded-xl transition-all shadow-md shadow-sky-500/20 flex items-center gap-1.5 whitespace-nowrap animate-pulse hover:animate-none">
-                   <i class="fa-solid fa-circle-dot text-xs"></i> Analisis Buffer
+                   <i class="fa-solid fa-circle-dot text-xs"></i> Wisata Terdekat
                  </button>
                  <button @click="selectedLocation = null" class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-1.5 whitespace-nowrap ml-auto">
                    Tutup
@@ -265,10 +265,10 @@
                   <div>
                     <h2 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                       <i class="fa-solid fa-circle-dot text-sky-500 animate-pulse"></i>
-                      Analisis Buffer Kampus
+                      Wisata Terdekat
                     </h2>
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      Menampilkan kampus terdekat dari <span class="font-semibold text-slate-700 dark:text-gray-200">{{ selectedLocation.name }}</span>
+                      Menampilkan destinasi wisata terdekat dari <span class="font-semibold text-slate-700 dark:text-gray-200">{{ selectedLocation.name }}</span>
                     </p>
                   </div>
                   <span class="px-3 py-1 rounded-xl text-xs font-bold uppercase tracking-wider bg-sky-500/10 text-sky-600 dark:text-sky-400">
@@ -304,40 +304,40 @@
                 <!-- Nearest Campuses List -->
                 <div>
                   <div class="flex justify-between items-center mb-2 px-1">
-                    <span class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Kampus Terdekat ({{ nearbyCampuses.length }})</span>
+                    <span class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Wisata Terdekat ({{ nearbyLocations.length }})</span>
                   </div>
                   
                   <div class="max-h-[140px] overflow-y-auto pr-1 space-y-2 custom-scrollbar">
                     <div 
-                      v-for="campus in nearbyCampuses" 
-                      :key="campus.id"
-                      @click="focusLocation(campus)"
+                      v-for="wisata in nearbyLocations" 
+                      :key="wisata.id"
+                      @click="focusLocation(wisata)"
                       class="flex items-center justify-between p-3 bg-white dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-sky-500/50 dark:hover:border-sky-500/50 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-sm transition-all group"
                     >
                       <div class="flex items-center gap-3 min-w-0 flex-1">
                         <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 shadow-sm"
-                             :style="{ backgroundColor: getCategoryDetails(campus.category).color }">
-                          <i :class="getCategoryDetails(campus.category).icon_name || 'fa-solid fa-graduation-cap'" class="text-xs"></i>
+                             :style="{ backgroundColor: getCategoryDetails(wisata.category).color }">
+                          <i :class="getCategoryDetails(wisata.category).icon_name || 'fa-solid fa-map-location-dot'" class="text-xs"></i>
                         </div>
                         <div class="min-w-0 flex-1">
                           <h4 class="font-bold text-sm text-slate-800 dark:text-gray-200 truncate group-hover:text-sky-500 transition-colors">
-                            {{ campus.name }}
+                            {{ wisata.name }}
                           </h4>
                           <p class="text-[10px] text-gray-400 dark:text-gray-500 truncate">
-                            {{ campus.address || campus.district || 'Alamat tidak tersedia' }}
+                            {{ wisata.address || wisata.district || 'Alamat tidak tersedia' }}
                           </p>
                         </div>
                       </div>
                       <div class="text-right shrink-0 pl-3">
                         <span class="text-xs font-extrabold text-teal-600 dark:text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-lg">
-                          {{ campus.distance > 1000 ? (campus.distance / 1000).toFixed(2) + ' km' : Math.round(campus.distance) + ' m' }}
+                          {{ wisata.distance > 1000 ? (wisata.distance / 1000).toFixed(2) + ' km' : Math.round(wisata.distance) + ' m' }}
                         </span>
                       </div>
                     </div>
 
-                    <div v-if="nearbyCampuses.length === 0" class="text-center py-6 text-xs text-gray-400 dark:text-gray-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/10">
-                      <i class="fa-solid fa-circle-exclamation text-lg mb-1.5 opacity-50 block"></i>
-                      Tidak ada kampus dalam radius ini.
+                    <div v-if="nearbyLocations.length === 0" class="text-center py-6 text-xs text-gray-400 dark:text-gray-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/10">
+                      <i class="fa-solid fa-map-location-dot text-lg mb-1.5 opacity-50 block"></i>
+                      Tidak ada destinasi wisata lain dalam radius ini.
                     </div>
                   </div>
                 </div>
@@ -655,29 +655,29 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     return R * c; // distance in meters
 }
 
-const isCampus = (category) => {
+const isWisata = (category) => {
     if (!category) return false;
-    const catLower = category.toLowerCase();
-    return catLower.includes('perguruan tinggi') || catLower.includes('kampus') || catLower.includes('universitas') || catLower.includes('akadem') || catLower.includes('institut');
+    const cats = ['kuliner', 'pantai', 'alam', 'sejarah', 'religi', 'hiburan', 'pusat perbelanjaan'];
+    return cats.some(c => category.toLowerCase().includes(c));
 }
 
-const nearbyCampuses = computed(() => {
+const nearbyLocations = computed(() => {
     if (!selectedLocation.value) return [];
     const centerLat = selectedLocation.value.lat;
     const centerLng = selectedLocation.value.lng;
     
     return locations.value
-        .filter(loc => loc.id !== selectedLocation.value.id && isCampus(loc.category))
+        .filter(loc => loc.id !== selectedLocation.value.id)
         .map(loc => {
             const dist = calculateDistance(centerLat, centerLng, loc.lat, loc.lng);
-            return {
-                ...loc,
-                distance: dist
-            };
+            return { ...loc, distance: dist };
         })
         .filter(loc => loc.distance <= bufferRadius.value)
         .sort((a, b) => a.distance - b.distance);
 })
+
+// Keep nearbyCampuses as alias so MapViewer prop still works
+const nearbyCampuses = nearbyLocations;
 
 const onLocationSelected = (loc) => {
     selectedLocation.value = loc;

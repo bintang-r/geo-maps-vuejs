@@ -115,14 +115,14 @@ onMounted(() => {
         const div = L.DomUtil.create('div', 'info legend bg-slate-900/90 dark:bg-slate-950/95 text-white p-3 rounded-xl border border-slate-700/50 shadow-2xl text-[10px] font-sans backdrop-blur-md flex flex-col gap-1.5 min-w-[150px]');
         div.innerHTML = `
             <div class="font-extrabold mb-0.5 text-slate-200 border-b border-slate-700/40 pb-1 flex items-center gap-1.5">
-                <i class="fa-solid fa-layer-group text-teal-400"></i>
-                Kepadatan Kampus
+                <i class="fa-solid fa-map-location-dot text-teal-400"></i>
+                Kepadatan Wisata
             </div>
             <div class="flex flex-col gap-1.5 mt-0.5">
-                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-slate-600/40" style="background-color: #334155; opacity: 0.15;"></span> 0 Kampus (Sangat Rendah)</div>
-                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-teal-400/40" style="background-color: #2dd4bf; opacity: 0.40;"></span> 1 Kampus (Rendah)</div>
-                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-teal-600/40" style="background-color: #0d9488; opacity: 0.45;"></span> 2 Kampus (Sedang)</div>
-                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-teal-700/40" style="background-color: #0f766e; opacity: 0.50;"></span> 3+ Kampus (Tinggi)</div>
+                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-slate-600/40" style="background-color: #334155; opacity: 0.15;"></span> 0 Lokasi (Sangat Rendah)</div>
+                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-teal-400/40" style="background-color: #2dd4bf; opacity: 0.40;"></span> 1 Lokasi (Rendah)</div>
+                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-teal-600/40" style="background-color: #0d9488; opacity: 0.45;"></span> 2 Lokasi (Sedang)</div>
+                <div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border border-teal-700/40" style="background-color: #0f766e; opacity: 0.50;"></span> 3+ Lokasi (Tinggi)</div>
             </div>
         `;
         return div;
@@ -159,7 +159,7 @@ onMounted(() => {
                         <div class="text-xs font-extrabold text-teal-600 dark:text-teal-400">Kecamatan ${districtName}</div>
                         <div class="text-[10px] text-slate-500 dark:text-gray-400">Kelurahan ${villageName}</div>
                         <div class="text-[10px] text-slate-600 dark:text-gray-300 mt-1.5 border-t border-slate-700/10 pt-1 flex flex-col gap-0.5">
-                            <div>Jumlah Lokasi: <span class="font-bold text-slate-800 dark:text-white">${count} Kampus</span></div>
+                            <div>Jumlah Wisata: <span class="font-bold text-slate-800 dark:text-white">${count} Lokasi</span></div>
                             <div>Kepadatan: <span class="font-extrabold ${colorClass}">${densityLabel}</span></div>
                         </div>
                         <div class="text-[9px] text-teal-500/80 mt-1 italic">Klik untuk tambah titik baru</div>
