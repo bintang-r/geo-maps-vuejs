@@ -1,9 +1,6 @@
 <template>
   <div class="h-screen w-full bg-slate-100 flex overflow-hidden font-['Inter',sans-serif] text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors">
     
-    <!-- Chatbot Widget -->
-    <Chatbot />
-
     <!-- Left Icon Rail -->
     <div class="w-20 bg-slate-950/90 backdrop-blur-xl flex flex-col items-center py-6 shadow-2xl z-20 shrink-0 border-r border-white/10">
       <div class="mb-8 p-3 bg-gradient-to-br from-emerald-400 to-teal-600 text-white rounded-2xl shadow-lg">
@@ -54,7 +51,7 @@
       </div>
 
       <!-- List -->
-      <div class="flex-1 overflow-y-auto px-4 pb-6 space-y-4 custom-scrollbar py-5">
+      <div class="flex-1 overflow-y-auto px-4 pb-6 space-y-4 custom-scrollbar py-5 relative">
         <div v-for="loc in filteredLocations" :key="loc.id" 
              @click="focusLocation(loc)"
              class="bg-slate-800/60 p-4 rounded-3xl cursor-pointer hover:bg-slate-700/80 hover:shadow-lg border border-white/5 transition-all duration-200 group"
@@ -89,6 +86,17 @@
         <div v-if="filteredLocations.length === 0" class="text-center text-gray-500 text-sm mt-10">
           Lokasi tidak ditemukan.
         </div>
+      </div>
+
+      <!-- Chatbot Widget Wrapper (Below Location List) -->
+      <div class="p-4 border-t border-white/5 bg-slate-900/80 backdrop-blur-xl shrink-0">
+         <div class="flex items-center justify-between">
+            <div class="pl-2">
+              <h4 class="text-sm font-bold text-white mb-0.5">Asisten AI</h4>
+              <p class="text-[10px] text-gray-400">Tanya seputar wisata</p>
+            </div>
+            <Chatbot />
+         </div>
       </div>
     </div>
 

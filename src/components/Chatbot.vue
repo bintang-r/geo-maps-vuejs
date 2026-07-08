@@ -1,14 +1,14 @@
 <template>
-  <!-- Floating Chatbot Widget -->
-  <div class="fixed bottom-6 left-[440px] md:left-[500px] z-[9999] font-['Inter',sans-serif] select-none">
+  <!-- Chatbot Widget (Relative to parent) -->
+  <div class="relative font-['Inter',sans-serif] select-none z-[9999]">
     
     <!-- Toggle Button with pulse animation when closed -->
     <button 
       @click="isOpen = !isOpen" 
-      class="relative w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 text-white flex items-center justify-center shadow-[0_8px_32px_rgba(20,184,166,0.5)] hover:scale-110 active:scale-95 transition-all duration-300"
+      class="relative w-14 h-14 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 text-white flex items-center justify-center shadow-[0_8px_32px_rgba(20,184,166,0.5)] hover:scale-110 active:scale-95 transition-all duration-300"
     >
       <span v-if="!isOpen" class="absolute inset-0 rounded-full bg-teal-500 animate-ping opacity-30"></span>
-      <i :class="isOpen ? 'fa-solid fa-xmark text-2xl' : 'fa-solid fa-robot text-2xl'" class="relative z-10 transition-all duration-300"></i>
+      <i :class="isOpen ? 'fa-solid fa-xmark text-xl' : 'fa-solid fa-robot text-xl'" class="relative z-10 transition-all duration-300"></i>
       <!-- Notification badge -->
       <span v-if="!isOpen && unreadCount > 0" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center border-2 border-white">{{ unreadCount }}</span>
     </button>
@@ -16,15 +16,15 @@
     <!-- Chat Window -->
     <transition 
       enter-active-class="transition-all duration-300 ease-out" 
-      enter-from-class="transform translate-y-8 opacity-0 scale-95" 
-      enter-to-class="transform translate-y-0 opacity-100 scale-100" 
+      enter-from-class="transform translate-x-[-20px] opacity-0 scale-95" 
+      enter-to-class="transform translate-x-0 opacity-100 scale-100" 
       leave-active-class="transition-all duration-200 ease-in" 
       leave-from-class="opacity-100 scale-100" 
-      leave-to-class="opacity-0 scale-95 translate-y-4"
+      leave-to-class="opacity-0 scale-95 translate-x-[-20px]"
     >
       <div 
         v-if="isOpen" 
-        class="absolute bottom-20 left-0 w-[380px] bg-white dark:bg-slate-900 rounded-3xl shadow-[0_24px_60px_rgba(0,0,0,0.25)] border border-slate-100 dark:border-slate-800 flex flex-col overflow-hidden"
+        class="absolute bottom-0 left-[calc(100%+16px)] w-[380px] bg-white dark:bg-slate-900 rounded-3xl shadow-[0_24px_60px_rgba(0,0,0,0.25)] border border-slate-100 dark:border-slate-800 flex flex-col overflow-hidden"
         style="height: 540px;"
       >
         
