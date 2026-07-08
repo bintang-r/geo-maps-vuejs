@@ -181,28 +181,13 @@ onMounted(() => {
             layer.on({
                 mouseover: (e) => {
                     const targetLayer = e.target;
-                    const targetCode = feature.properties.district_code || feature.properties.district;
                     
-                    choroplethLayer.eachLayer((l) => {
-                        if ((l.feature.properties.district_code || l.feature.properties.district) === targetCode) {
-                            if (l === targetLayer) {
-                                // Highlight specific kelurahan
-                                l.setStyle({
-                                    weight: 4,
-                                    color: '#0ea5e9', // Sky blue border
-                                    dashArray: '',
-                                    fillOpacity: 0.8
-                                });
-                            } else {
-                                // Highlight rest of kecamatan slightly
-                                l.setStyle({
-                                    weight: 2,
-                                    color: '#0f766e',
-                                    dashArray: '',
-                                    fillOpacity: 0.5
-                                });
-                            }
-                        }
+                    // Only highlight the border (weight/color), don't change fillOpacity or fillColor
+                    // so we don't interfere with the map visibility if it's 0 count
+                    targetLayer.setStyle({
+                        weight: 4,
+                        color: '#0ea5e9', // Sky blue border
+                        dashArray: ''
                     });
                     
                     if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
@@ -210,12 +195,7 @@ onMounted(() => {
                     }
                 },
                 mouseout: (e) => {
-                    const targetCode = feature.properties.district_code || feature.properties.district;
-                    choroplethLayer.eachLayer((l) => {
-                        if ((l.feature.properties.district_code || l.feature.properties.district) === targetCode) {
-                            choroplethLayer.resetStyle(l);
-                        }
-                    });
+                    choroplethLayer.resetStyle(e.target);
                 },
                 click: (e) => {
                     L.DomEvent.stopPropagation(e);
@@ -477,7 +457,8 @@ const styleChoropleth = (feature) => {
     
     const count = getAreaCount(areaName);
     const fillColor = getColorByCount(count);
-    const fillOpacity = count > 0 ? 0.35 + (count * 0.05) : 0.15;
+    const fillOpacity = count > 0 ? 0.35 + (count * 0.05) : 0.0;
+
     
     // Make boundaries lighter/invisible when grouped into regencies if desired, but here we just keep them consistent
     const weight = props.geoJsonLevel === 'province' ? 0.5 : 1.5;
